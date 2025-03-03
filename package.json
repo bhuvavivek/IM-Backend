@@ -24,10 +24,12 @@
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.11.0",
     "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.16.0",
     "zod": "^3.24.2"
   }
 }

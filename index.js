@@ -8,7 +8,7 @@ import stockRoutes from './routes/stockRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js'
 import salesRoutes from './routes/salesRoutes.js'
 import purchaseRoutes from './routes/purchaseRoutes.js'
-
+import InvoiceRoutes from './routes/InvoiceRoute.js'
 
 dotenv.config();
 const app = express();
@@ -29,6 +29,8 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/purchases',purchaseRoutes)
 app.use('/api/vendors',vendorRoutes)
 app.use('/api/sales',salesRoutes)
+app.use('/api/invoices',InvoiceRoutes)
+
 
 
 async function startServer() {
