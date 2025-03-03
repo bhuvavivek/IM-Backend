@@ -5,7 +5,9 @@ import cors from 'cors'
 import adminRoutes from './routes/adminRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import stockRoutes from './routes/stockRoutes.js';
-
+import vendorRoutes from './routes/vendorRoutes.js'
+import salesRoutes from './routes/salesRoutes.js'
+import purchaseRoutes from './routes/purchaseRoutes.js'
 
 
 dotenv.config();
@@ -24,6 +26,9 @@ app.get("/", (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/purchases',purchaseRoutes)
+app.use('/api/vendors',vendorRoutes)
+app.use('/api/sales',salesRoutes)
 
 
 async function startServer() {
