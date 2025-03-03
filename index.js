@@ -4,6 +4,8 @@ import ConnectMongodb from "./config/db.js";
 import cors from 'cors'
 import adminRoutes from './routes/adminRoutes.js'
 import productRoutes from './routes/productRoutes.js'
+import stockRoutes from './routes/stockRoutes.js';
+
 
 
 dotenv.config();
@@ -21,6 +23,8 @@ app.get("/", (req, res) => {
 
 app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/stock', stockRoutes);
+
 
 async function startServer() {
     try {
