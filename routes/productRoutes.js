@@ -12,6 +12,6 @@ router.post("/", addProduct);
 router.put("/:id", updateProduct);
 router.delete("/:id", deleteProduct);
 router.get("/list", getAllProducts);
-router.get("/:id", getProductById);
+router.get("/details/:productId", getProductById);
 
 export default router;
