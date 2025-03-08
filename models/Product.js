@@ -3,9 +3,8 @@ import mongoose from "mongoose";
 const ProductSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
-    priceWithoutGst: { type: Number, required: true },
-    gstPercentage: { type: Number, required: true },
-    priceWithGst: { type: Number, required: true },
+    price: { type: Number, required: true },
+    unit: { type: String, enum: ["KG", "GRAM", "TON"], default: "KG" },
     weight: { type: String, required: true },
     stock: { type: Number, required: true, default: 0 },
   },
