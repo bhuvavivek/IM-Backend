@@ -3,11 +3,12 @@ import Product from "../models/Product.js";
 const addProduct = async (req, res) => {
   try {
     const { name, priceWithoutGst, gstPercentage, weight, stock } = req.body;
+    
     const priceWithGst =
       priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
 
     const product = await Product.create({
-      name: name.trim().toUppercase(),
+      name: name.trim(),
       priceWithoutGst,
       gstPercentage,
       priceWithGst,
@@ -16,6 +17,8 @@ const addProduct = async (req, res) => {
     });
     res.status(201).json(product);
   } catch (error) {
+    console.log(error);
+    
     res.status(500).json({ message: "Error adding product", error });
   }
 };
