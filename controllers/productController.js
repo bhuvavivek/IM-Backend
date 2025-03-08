@@ -7,6 +7,7 @@ const addProduct = async (req, res) => {
     const priceWithGst =
       priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
 
+
     const product = await Product.create({
       name: name.trim(),
       priceWithoutGst,
@@ -15,9 +16,16 @@ const addProduct = async (req, res) => {
       weight,
       stock,
     });
+
     res.status(201).json(product);
   } catch (error) {
     console.log(error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: `Product with name "${error.keyValue.name}" already exists.`,
+      });
+    }
     
     res.status(500).json({ message: "Error adding product", error });
   }
@@ -26,7 +34,7 @@ const addProduct = async (req, res) => {
 // Update Product
 const updateProduct = async (req, res) => {
   try {
-    const { name, priceWithoutGst, gstPercentage, weight, category, stock } =
+    const { name, priceWithoutGst, gstPercentage, weight, stock } =
       req.body;
     const priceWithGst =
       priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
@@ -34,12 +42,11 @@ const updateProduct = async (req, res) => {
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
       {
-        name,
+        name:name.trim(),
         priceWithoutGst,
         gstPercentage,
         priceWithGst,
         weight,
-        category,
         stock,
       },
       { new: true }
@@ -47,6 +54,9 @@ const updateProduct = async (req, res) => {
 
     res.json(updatedProduct);
   } catch (error) {
+
+
+
     res.status(500).json({ message: "Error updating product", error });
   }
 };
