@@ -7,7 +7,7 @@ const addProduct = async (req, res) => {
       priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
 
     const product = await Product.create({
-      name: name.trim().toUppercase(),
+      name: name.trim(),
       priceWithoutGst,
       gstPercentage,
       priceWithGst,
