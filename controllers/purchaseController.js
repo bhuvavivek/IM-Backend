@@ -1,4 +1,4 @@
-import Purchase from "../models/Purchase";
+import Purchase from "../models/Purchase.js";
 
 const addPurchase = async (req, res) => {
     try {

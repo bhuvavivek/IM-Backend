@@ -1,4 +1,4 @@
-import Invoice from '../models/Invoice'
+import Invoice from '../models/Invoice.js'
 import excelJS from 'exceljs';
 import pdfkit from 'pdfkit';
 
