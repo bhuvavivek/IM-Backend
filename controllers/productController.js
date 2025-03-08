@@ -1,28 +1,50 @@
-import Product from '../models/Product.js'
+import Product from "../models/Product.js";
 // Add Product
 const addProduct = async (req, res) => {
   try {
-    const { name, priceWithoutGst, gstPercentage, weight, category, stock } = req.body;
-    const priceWithGst = priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
+    const { name, priceWithoutGst, gstPercentage, weight, stock } = req.body;
+    const priceWithGst =
+      priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
 
-    const product = await Product.create({ name, priceWithoutGst, gstPercentage, priceWithGst, weight, category, stock });
+    const product = await Product.create({
+      name: name.trim().toUppercase(),
+      priceWithoutGst,
+      gstPercentage,
+      priceWithGst,
+      weight,
+      stock,
+    });
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Error adding product', error });
+    res.status(500).json({ message: "Error adding product", error });
   }
 };
 
 // Update Product
 const updateProduct = async (req, res) => {
   try {
-    const { name, priceWithoutGst, gstPercentage, weight, category, stock } = req.body;
-    const priceWithGst = priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
+    const { name, priceWithoutGst, gstPercentage, weight, category, stock } =
+      req.body;
+    const priceWithGst =
+      priceWithoutGst + (priceWithoutGst * gstPercentage) / 100;
 
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, { name, priceWithoutGst, gstPercentage, priceWithGst, weight, category, stock }, { new: true });
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      {
+        name,
+        priceWithoutGst,
+        gstPercentage,
+        priceWithGst,
+        weight,
+        category,
+        stock,
+      },
+      { new: true }
+    );
 
     res.json(updatedProduct);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating product', error });
+    res.status(500).json({ message: "Error updating product", error });
   }
 };
 
@@ -30,9 +52,9 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Product deleted' });
+    res.json({ message: "Product deleted" });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting product', error });
+    res.status(500).json({ message: "Error deleting product", error });
   }
 };
 
@@ -40,9 +62,9 @@ const deleteProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find();
-    res.json(products);
+    res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching products', error });
+    res.status(500).json({ message: "Error fetching products", error });
   }
 };
 
@@ -52,7 +74,13 @@ const getProductById = async (req, res) => {
     const product = await Product.findById(req.params.id);
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching product', error });
+    res.status(500).json({ message: "Error fetching product", error });
   }
 };
-export { addProduct, updateProduct, deleteProduct, getAllProducts, getProductById };
+export {
+  addProduct,
+  deleteProduct,
+  getAllProducts,
+  getProductById,
+  updateProduct,
+};
