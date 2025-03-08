@@ -34,7 +34,7 @@ const updateProduct = async (req, res) => {
     const { name, unit, price, weight, stock } = req.body;
 
     const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
+      req.query.productId,
       {
         name: name.trim(),
         price,
@@ -54,7 +54,7 @@ const updateProduct = async (req, res) => {
 // Delete Product
 const deleteProduct = async (req, res) => {
   try {
-    await Product.findByIdAndDelete(req.params.id);
+    await Product.findByIdAndDelete(req.query.productId);
     res.json({ message: "Product deleted" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting product", error });
@@ -74,13 +74,13 @@ const getAllProducts = async (req, res) => {
 // Get Single Product
 const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.productId);
+    const product = await Product.findById(req.query.productId);
     if(!product){
       res.status(404).json({
         message:'Product Not Founde with this id'
       })
     }
-    res.status(200).json(product);
+    res.status(200).json({product});
   } catch (error) {
     res.status(500).json({ message: "Error fetching product", error });
   }
