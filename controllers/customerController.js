@@ -1,6 +1,6 @@
 import Customer from "../models/Customer.js";
 
-const addVendor = async (req, res) => {
+const addCustomer = async (req, res) => {
   try {
     const customer = new Customer(req.body);
     await customer.save();
@@ -10,7 +10,7 @@ const addVendor = async (req, res) => {
   }
 };
 
-const getVendors = async (req, res) => {
+const getCustomer = async (req, res) => {
   try {
     const customers = await Customer.find();
     res.status(200).json({ customers });
@@ -19,4 +19,4 @@ const getVendors = async (req, res) => {
   }
 };
 
-export { addVendor, getVendors };
+export { addCustomer, getCustomer };
