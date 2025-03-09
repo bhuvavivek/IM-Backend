@@ -18,5 +18,18 @@ const getVendors = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const getVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.vendorId;
+    const vendor = await Customer.findById(vendorId);
+    if (!vendor) {
+      res.status(404).json({ message: "vendor not found" });
+    }
 
-export { addVendor, getVendors };
+    res.status(200).json({ vendor });
+  } catch (erorr) {
+    console.log(erorr);
+  }
+};
+
+export { addVendor, getVendor, getVendors };

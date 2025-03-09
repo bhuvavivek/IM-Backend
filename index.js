@@ -28,7 +28,7 @@ app.use("/api/product", productRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/vendors", vendorRoutes);
-app.use("/api/cusotmers", customerRoutes);
+app.use("/api/customers", customerRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/invoices", InvoiceRoutes);
 

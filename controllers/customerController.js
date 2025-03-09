@@ -10,7 +10,7 @@ const addCustomer = async (req, res) => {
   }
 };
 
-const getCustomer = async (req, res) => {
+const getCustomers = async (req, res) => {
   try {
     const customers = await Customer.find();
     res.status(200).json({ customers });
@@ -19,4 +19,18 @@ const getCustomer = async (req, res) => {
   }
 };
 
-export { addCustomer, getCustomer };
+const getCustomer = async (req, res) => {
+  try {
+    const customerId = req.params.customerId;
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      res.status(404).json({ message: "customer not found" });
+    }
+
+    res.status(200).json({ customer });
+  } catch (erorr) {
+    console.log(erorr);
+  }
+};
+
+export { addCustomer, getCustomer, getCustomers };
