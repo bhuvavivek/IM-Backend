@@ -1,10 +1,9 @@
 import Product from "../models/Product.js";
+import Stock from "../models/Stock.js";
 // Add Product
 const addProduct = async (req, res) => {
   try {
     const { name, price, unit, weight, stock } = req.body;
-
-    console.log(req.body)
 
     const product = await Product.create({
       name: name?.trim(),
@@ -13,6 +12,23 @@ const addProduct = async (req, res) => {
       weight,
       stock,
     });
+
+    // create a stock here for the product
+
+    if (product) {
+      await Stock.create({
+        productId: product._id,
+        quantity: product.stock,
+        lowStockThreshold: 10,
+        history: [
+          {
+            change: product.stock,
+            reason: "Initial stock",
+            changeType: "STOCK IN",
+          },
+        ],
+      });
+    }
 
     res.status(201).json(product);
   } catch (error) {
@@ -65,7 +81,7 @@ const deleteProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find();
-    res.status(200).json({products});
+    res.status(200).json({ products });
   } catch (error) {
     res.status(500).json({ message: "Error fetching products", error });
   }
@@ -75,12 +91,12 @@ const getAllProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.query.productId);
-    if(!product){
+    if (!product) {
       res.status(404).json({
-        message:'Product Not Founde with this id'
-      })
+        message: "Product Not Founde with this id",
+      });
     }
-    res.status(200).json({product});
+    res.status(200).json({ product });
   } catch (error) {
     res.status(500).json({ message: "Error fetching product", error });
   }
