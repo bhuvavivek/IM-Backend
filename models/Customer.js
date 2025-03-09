@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const VendorSchema = new mongoose.Schema(
+const CustomerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     contact: { type: String, required: true },
@@ -10,6 +10,6 @@ const VendorSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Vendor = mongoose.model("Vendor", VendorSchema);
+const Customer = mongoose.model("Customer", CustomerSchema);
 
-export default Vendor;
+export default Customer;

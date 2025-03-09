@@ -1,8 +1,8 @@
-import express from 'express';
+import express from "express";
+import { addVendor, getVendors } from "../controllers/vendorController.js";
 
 const router = express.Router();
-import {addVendor,getVendors} from '../controllers/vendorController.js'
 
-router.route('/').post(addVendor).get(getVendors);
+router.route("/").post(addVendor).get(getVendors);
 
-export default router
+export default router;

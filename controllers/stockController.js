@@ -16,7 +16,6 @@ export const addStock = async (req, res) => {
 
     if (changeType === "STOCK IN") {
       stock.quantity += change;
-      stock.lowStockThreshold = lowStockThreshold;
       stock.history.push({
         change: change,
         reason: "Stock added" || reason,
@@ -25,10 +24,9 @@ export const addStock = async (req, res) => {
     }
 
     if (changeType === "STOCK OUT") {
-      stock.quantity -= quantity;
-      stock.lowStockThreshold = lowStockThreshold;
+      stock.quantity -= change;
       stock.history.push({
-        change: quantity,
+        change: change,
         reason: "Stock removed" || reason,
         changeType,
       });
@@ -37,6 +35,7 @@ export const addStock = async (req, res) => {
     await stock.save();
     res.status(200).json({ message: "Stock updated successfully", stock });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -49,7 +48,7 @@ export const getStockByProduct = async (req, res) => {
     }).populate("productId");
     if (!stock) return res.status(404).json({ message: "Stock not found" });
 
-    res.status(200).json(stock);
+    res.status(200).json({ stock });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
