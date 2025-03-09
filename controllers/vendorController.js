@@ -21,15 +21,32 @@ const getVendors = async (req, res) => {
 const getVendor = async (req, res) => {
   try {
     const vendorId = req.params.vendorId;
-    const vendor = await Customer.findById(vendorId);
+    const vendor = await Vendor.findById(vendorId);
     if (!vendor) {
       res.status(404).json({ message: "vendor not found" });
     }
 
     res.status(200).json({ vendor });
   } catch (erorr) {
-    console.log(erorr);
+    res.status(500).json({ error: error.message });
   }
 };
 
-export { addVendor, getVendor, getVendors };
+const updateVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.vendorId;
+
+    const vendor = await Vendor.findByIdAndUpdate(vendorId, req.body, {
+      new: true,
+    });
+
+    if (!vendor) {
+      res.status(404).json({ message: "vendor not found" });
+    }
+    res.status(200).json({ vendor });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export { addVendor, getVendor, getVendors, updateVendor };

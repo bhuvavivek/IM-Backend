@@ -28,9 +28,27 @@ const getCustomer = async (req, res) => {
     }
 
     res.status(200).json({ customer });
-  } catch (erorr) {
-    console.log(erorr);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
-export { addCustomer, getCustomer, getCustomers };
+const updateCustomer = async (req, res) => {
+  try {
+    const customerId = req.params.customerId;
+
+    const customer = await Customer.findByIdAndUpdate(customerId, req.body, {
+      new: true,
+    });
+
+    if (!customer) {
+      res.status(404).json({ message: "customer not found" });
+    }
+
+    res.status(200).json({ customer });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export { addCustomer, getCustomer, getCustomers, updateCustomer };
