@@ -1,12 +1,14 @@
+import { v4 as uuidv4 } from "uuid";
 import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
+
 const generateUniqueInvoiceNumber = async () => {
   let invoiceNumber;
   let isUnique = false;
 
   while (!isUnique) {
     invoiceNumber = `INV-${uuidv4().split("-")[0]}`;
-    const existingSale = await Sales.findOne({ invoiceNumber });
+    const existingSale = await Purchase.findOne({ invoiceNumber });
     if (!existingSale) {
       isUnique = true;
     }
