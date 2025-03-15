@@ -1,9 +1,9 @@
-import express from 'express';
-import {addSale , getSales} from '../controllers/salesController.js'
+import express from "express";
+import { addSale, getSale, getSales } from "../controllers/salesController.js";
 
 const router = express.Router();
 
+router.route("/").post(addSale).get(getSales);
+router.get("/:id", getSale);
 
-router.route('/').post(addSale).get(getSales);
-
-export default router
+export default router;
