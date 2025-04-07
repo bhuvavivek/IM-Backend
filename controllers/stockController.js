@@ -13,6 +13,9 @@ export const addStock = async (req, res) => {
 
     // Check if stock exists, update or create new
     let stock = await Stock.findOne({ productId });
+    if (!stock) {
+      stock = new Stock({ productId, quantity: 0, history: [] });
+    }
 
     if (changeType === "STOCK IN") {
       stock.quantity += change;
@@ -21,6 +24,7 @@ export const addStock = async (req, res) => {
         reason: "Stock added" || reason,
         changeType,
       });
+      product.stock += change; // Update product stock
     }
 
     if (changeType === "STOCK OUT") {
@@ -30,9 +34,11 @@ export const addStock = async (req, res) => {
         reason: "Stock removed" || reason,
         changeType,
       });
+      product.stock -= change; // Update product stock
     }
 
     await stock.save();
+    await product.save(); // Save updated product stock
     res.status(200).json({ message: "Stock updated successfully", stock });
   } catch (error) {
     console.log(error);

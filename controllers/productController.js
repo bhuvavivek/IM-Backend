@@ -3,18 +3,31 @@ import Stock from "../models/Stock.js";
 // Add Product
 const addProduct = async (req, res) => {
   try {
-    const { name, price, unit, weight, stock } = req.body;
-
-    const product = await Product.create({
-      name: name?.trim(),
+    const {
+      name,
       price,
       unit,
       weight,
       stock,
+      bagssize,
+      isBesan,
+      isRawMaterial,
+      isWastage,
+    } = req.body;
+
+    const product = await Product.create({
+      name: name?.trim(),
+      price,
+      stock,
+      weight,
+      unit,
+      bagsizes: [{ size: bagssize }], // Store as an array of objects
+      isBesan,
+      isRawMaterial,
+      isWastage,
     });
 
     // create a stock here for the product
-
     if (product) {
       await Stock.create({
         productId: product._id,
@@ -30,7 +43,10 @@ const addProduct = async (req, res) => {
       });
     }
 
-    res.status(201).json(product);
+    res.status(201).json({
+      ...product.toObject(),
+      bagssize: product.bagsizes?.[product.bagsizes.length - 1]?.size || 0,
+    });
   } catch (error) {
     console.log(error);
 
@@ -47,21 +63,47 @@ const addProduct = async (req, res) => {
 // Update Product
 const updateProduct = async (req, res) => {
   try {
-    const { name, unit, price, weight, stock } = req.body;
+    const {
+      name,
+      unit,
+      price,
+      weight,
+      stock,
+      bagssize,
+      isBesan,
+      isRawMaterial,
+      isWastage,
+    } = req.body;
 
     const updatedProduct = await Product.findByIdAndUpdate(
       req.query.productId,
       {
-        name: name.trim(),
-        price,
-        unit,
-        weight,
-        stock,
+        $set: {
+          name: name.trim(),
+          price,
+          unit,
+          weight,
+          stock,
+          isBesan,
+          isRawMaterial,
+          isWastage,
+        },
+        $push: {
+          bagsizes: {
+            size: bagssize,
+            date: new Date(),
+          },
+        },
       },
       { new: true }
     );
 
-    res.json(updatedProduct);
+    res.json({
+      ...updatedProduct.toObject(),
+      bagssize:
+        updatedProduct.bagsizes?.[updatedProduct.bagsizes.length - 1]?.size ||
+        0,
+    });
   } catch (error) {
     res.status(500).json({ message: "Error updating product", error });
   }
@@ -80,8 +122,15 @@ const deleteProduct = async (req, res) => {
 // Get All Products
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find();
-    res.status(200).json({ products });
+    const products = await Product.find().sort({ createdAt: -1 });
+
+    // Format the response to include the latest bagsize
+    const formattedProducts = products.map((product) => ({
+      ...product.toObject(),
+      bagssize: product.bagsizes?.[product.bagsizes.length - 1]?.size || 0,
+    }));
+
+    res.status(200).json({ products: formattedProducts });
   } catch (error) {
     res.status(500).json({ message: "Error fetching products", error });
   }
@@ -96,7 +145,12 @@ const getProductById = async (req, res) => {
         message: "Product Not Founde with this id",
       });
     }
-    res.status(200).json({ product });
+    res.status(200).json({
+      product: {
+        ...product.toObject(),
+        bagssize: product.bagsizes?.[product.bagsizes.length - 1]?.size || 0,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Error fetching product", error });
   }
