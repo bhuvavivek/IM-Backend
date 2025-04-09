@@ -27,6 +27,7 @@ const ProductSchema = new mongoose.Schema(
 
 ProductSchema.pre("save", function (next) {
   this.totalWeight = parseFloat(this.weight) * this.stock;
+  this.totalBags = Math.floor(this.totalWeight / this.bagsizes[0].size);
   next();
 });
 
@@ -36,6 +37,9 @@ ProductSchema.pre("findOneAndUpdate", function (next) {
     const weight = parseFloat(update.weight || this._update.weight);
     const stock = update.stock || this._update.stock;
     update.totalWeight = weight * stock;
+    update.totalBags = Math.floor(
+      update.totalWeight / this._update.bagsizes[0].size
+    );
   }
   next();
 });
