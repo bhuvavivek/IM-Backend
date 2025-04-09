@@ -75,7 +75,39 @@ export const getLowStockAlerts = async (req, res) => {
 
 export const getStocksHistory = async (req, res) => {
   try {
-    const stocks = await Stock.find().populate("productId");
+    const { isWestage } = req.query;
+    const isWastageFilter = isWestage === "true";
+
+    const stocks = await Stock.aggregate([
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $match: isWastageFilter
+          ? { "product.isWastage": true }
+          : { "product.isWastage": false },
+      },
+      {
+        $project: {
+          _id: 1,
+          productId: "$product._id",
+          productName: "$product.name",
+          quantity: 1,
+          lowStockThreshold: 1,
+          history: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          product: "$product",
+        },
+      },
+    ]);
+
     res.status(200).json({ stocks });
   } catch (error) {
     res.status(500).json({ message: error.message });
