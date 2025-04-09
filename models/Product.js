@@ -20,6 +20,7 @@ const ProductSchema = new mongoose.Schema(
       ],
       default: [{ size: 50, date: Date.now() }],
     },
+    totalBags: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
