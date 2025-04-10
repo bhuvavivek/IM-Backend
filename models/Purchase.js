@@ -23,11 +23,23 @@ const PurchaseSchema = new mongoose.Schema(
         quantity: { type: Number, required: true },
       },
     ],
-    subtotal: { type: Number, required: true }, // Total before GST
-    gstPercentage: { type: Number, required: true }, // GST percentage
-    gstAmount: { type: Number, required: true }, // Calculated GST amount
-    totalAmount: { type: Number, required: true }, // Final total amount including GST
-    purchaseDate: { type: Date, default: Date.now },
+
+    subtotal: { type: Number, required: true },
+    earlyPaymentDiscount: { type: Number, default: 0 }, // 2% on subtotal if early
+    gstPercentage: { type: Number, required: true }, // Total GST (e.g. 18)
+    gstAmount: { type: Number, required: true }, // Total GST amount
+
+    // 👥 GST Split
+    cgst: { type: Number }, // Calculated as gstAmount / 2
+    sgst: { type: Number }, // Calculated as gstAmount / 2
+
+    totalAmount: { type: Number, required: true }, // subtotal - discount + gst
+
+    // 🧾 Dates
+    createdAt: { type: Date, default: Date.now },
+    purchaseDate: { type: Date, default: Date.now }, // Date of purchase
+    dueDate: { type: Date },
+    paymentSendDate: { type: Date }, // editable manually
   },
   { timestamps: true }
 );

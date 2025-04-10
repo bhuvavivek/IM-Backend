@@ -23,12 +23,44 @@ const SalesSchema = new mongoose.Schema(
         quantity: { type: Number, required: true },
       },
     ],
-    subtotal: { type: Number, required: true }, // Sum of all item totals before GST
-    gstPercentage: { type: Number, required: true }, // GST percentage applied
-    gstAmount: { type: Number, required: true }, // GST amount calculated from subtotal
-    totalAmount: { type: Number, required: true }, // Final total amount including GST
+    // 💰 Core Amounts
+    subtotal: { type: Number, required: true },
+    earlyPaymentDiscount: { type: Number, default: 0 }, // 2% on subtotal if early
+    gstPercentage: { type: Number, required: true }, // Total GST (e.g. 18)
+    gstAmount: { type: Number, required: true }, // Total GST amount
+
+    // 👥 GST Split
+    cgst: { type: Number, required: true }, // Calculated as gstAmount / 2
+    sgst: { type: Number, required: true }, // Calculated as gstAmount / 2
+    totalAmount: { type: Number, required: true }, // subtotal - discount + gst
+
+    // 🧾 Dates
     createdAt: { type: Date, default: Date.now },
-    shippingDate: { type: Date },
+    dueDate: { type: Date, required: true },
+    payments: [
+      {
+        amount: { type: Number, required: true },
+        date: { type: Date, default: Date.now },
+        mode: { type: String },
+        remarks: { type: String },
+      },
+    ],
+    amountPaid: { type: Number, default: 0 },
+    isFullyPaid: { type: Boolean, default: false },
+
+    // 🧍‍♂️ Salesperson Commission
+    salesperson: {
+      name: { type: String },
+      commissionPercentage: { type: Number },
+      commissionAmount: { type: Number },
+    },
+
+    // Status
+    status: {
+      type: String,
+      enum: ["Pending", "Paid", "Overdue"],
+      default: "Pending",
+    },
   },
   { timestamps: true }
 );
