@@ -9,6 +9,6 @@ import {
 const router = express.Router();
 
 router.route("/").post(addSale).get(getSales);
-router.post("/:id/payment", addPaymentToSale);
+router.post("/payment/:id", addPaymentToSale);
 router.get("/:id", getSale);
 export default router;

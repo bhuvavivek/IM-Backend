@@ -113,7 +113,7 @@ const addSale = async (req, res) => {
 
     // Generate unique invoice number
     const invoiceNumber = await generateUniqueInvoiceNumber();
-
+    const pendingAmount = totalAmount - amountPaid;
     // Create sale record
     const sale = new Sales({
       invoiceNumber,
@@ -130,6 +130,7 @@ const addSale = async (req, res) => {
       dueDate,
       payments,
       amountPaid,
+      pendingAmount,
       isFullyPaid,
       salesperson: {
         name: salesperson?.name || "",
@@ -165,6 +166,7 @@ const getSales = async (req, res) => {
       gstAmount: sale.gstAmount,
       totalAmount: sale.totalAmount,
       amountPaid: sale.amountPaid,
+      pendingAmount: sale.pendingAmount,
       isFullyPaid: sale.isFullyPaid,
       salespersonName: sale.salesperson?.name || "",
       status: sale.status,
@@ -205,6 +207,7 @@ const getSale = async (req, res) => {
       sgst: sale.sgst,
       totalAmount: sale.totalAmount,
       amountPaid: sale.amountPaid || 0,
+      pendingAmount: sale.pendingAmount || 0,
       isFullyPaid: sale.isFullyPaid || false,
       items: sale.items.map((item) => ({
         productId: item.productId._id,
@@ -242,7 +245,7 @@ const getSale = async (req, res) => {
 const addPaymentToSale = async (req, res) => {
   try {
     const saleId = req.params.id;
-    const { amount, mode, remarks } = req.body;
+    const { amount, mode, remarks, date } = req.body;
 
     if (!amount || amount <= 0) {
       return res
@@ -266,7 +269,7 @@ const addPaymentToSale = async (req, res) => {
     // Add new payment
     const newPayment = {
       amount,
-      date: new Date(),
+      date: new Date(date),
       mode,
       remarks,
     };
@@ -274,18 +277,21 @@ const addPaymentToSale = async (req, res) => {
 
     // Recalculate total amount paid
     const amountPaid = sale.payments.reduce((sum, p) => sum + p.amount, 0);
+    const pendingAmount = sale.totalAmount - amountPaid;
     const isFullyPaid = amountPaid >= sale.totalAmount;
 
     // Update sale document
     sale.amountPaid = amountPaid;
     sale.isFullyPaid = isFullyPaid;
     sale.status = determineStatus(amountPaid, sale.totalAmount, sale.dueDate);
+    sale.pendingAmount = pendingAmount;
 
     if (sale.status === "Paid" && new Date() <= new Date(sale.dueDate)) {
       sale.earlyPaymentDiscount = sale.totalAmount * 0.02; // Apply 2% discount
       // also need to do further calculation for correct update
       const gstBase = sale.subtotal - sale.earlyPaymentDiscount;
-      sale.gstAmount = (gstBase * sale.gstPercentage) / 100;
+      const gstAmount = (gstBase * sale.gstPercentage) / 100;
+      sale.gstAmount = gstAmount;
       sale.cgst = gstAmount / 2;
       sale.sgst = gstAmount / 2;
       sale.totalAmount = gstBase + gstAmount;

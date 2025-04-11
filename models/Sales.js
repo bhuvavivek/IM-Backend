@@ -46,6 +46,7 @@ const SalesSchema = new mongoose.Schema(
       },
     ],
     amountPaid: { type: Number, default: 0 },
+    pendingAmount: { type: Number, default: 0 },
     isFullyPaid: { type: Boolean, default: false },
 
     // 🧍‍♂️ Salesperson Commission
