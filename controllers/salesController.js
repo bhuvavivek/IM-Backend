@@ -124,7 +124,6 @@ const addSale = async (req, res) => {
       invoiceNumber,
       customerId,
       items: processedItems,
-      isPaymentReceived: isPaymentDone,
       subtotal,
       earlyPaymentDiscount,
       gstPercentage,

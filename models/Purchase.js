@@ -20,7 +20,14 @@ const PurchaseSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
+        price: { type: Number, required: true },
         quantity: { type: Number, required: true },
+        bag: { type: Number, required: true },
+        total: { type: Number, required: true },
+        name: { type: String, required: true },
+        weight: { type: Number, required: true },
+        totalweight: { type: Number, required: true },
+        bagsize: { type: Number, required: true },
       },
     ],
 
@@ -38,8 +45,27 @@ const PurchaseSchema = new mongoose.Schema(
     // 🧾 Dates
     createdAt: { type: Date, default: Date.now },
     purchaseDate: { type: Date, default: Date.now }, // Date of purchase
-    dueDate: { type: Date },
     paymentSendDate: { type: Date }, // editable manually
+
+    // 💵 Payments
+    payments: [
+      {
+        amount: { type: Number, required: true },
+        date: { type: Date, default: Date.now },
+        mode: { type: String }, // like "Cash", "Bank Transfer", etc.
+        remarks: { type: String },
+      },
+    ],
+    amountPaid: { type: Number, default: 0 },
+    pendingAmount: { type: Number, default: 0 },
+    isFullyPaid: { type: Boolean, default: false },
+
+    // Status
+    status: {
+      type: String,
+      enum: ["Pending", "Paid", "Overdue"],
+      default: "Pending",
+    },
   },
   { timestamps: true }
 );
