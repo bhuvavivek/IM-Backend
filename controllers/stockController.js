@@ -2,7 +2,7 @@ import Product from "../models/Product.js";
 import Stock from "../models/Stock.js";
 
 // Add stock for a product
-export const addStock = async (req, res) => {
+export const stockChange = async (req, res) => {
   try {
     const { productId, lowStockThreshold, change, reason, changeType } =
       req.body;
@@ -36,7 +36,9 @@ export const addStock = async (req, res) => {
       });
       product.stock -= change; // Update product stock
     }
-
+    const totalWeight = parseFloat(product.weight) * product.stock;
+    const totalBags = Math.floor(totalWeight / product.bagsizes[0].size);
+    product.totalBags = totalBags;
     await stock.save();
     await product.save(); // Save updated product stock
     res.status(200).json({ message: "Stock updated successfully", stock });

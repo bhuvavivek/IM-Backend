@@ -6,12 +6,14 @@ const CustomerSchema = new mongoose.Schema(
     lastName: { type: String, required: true },
     contact: { type: Number, required: true },
     email: { type: String, required: true, unique: true },
-    billingAddress: {
+    businessInformation: {
       country: { type: String, required: true },
       Address: { type: String, required: true },
       city: { type: String, required: true },
       state: { type: String, required: true },
       pinCode: { type: Number, required: true },
+      gstNumber: { type: String, required: true },
+      businessName: { type: String, required: true },
     },
     shippingAddress: {
       country: { type: String, required: true },

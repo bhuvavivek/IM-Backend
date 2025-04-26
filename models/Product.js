@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const ProductSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
     price: { type: Number, required: true },
     unit: { type: String, enum: ["KG", "GRAM", "TON"], default: "KG" },
     weight: { type: String, required: true },
@@ -21,6 +21,8 @@ const ProductSchema = new mongoose.Schema(
       default: [{ size: 50, date: Date.now() }],
     },
     totalBags: { type: Number, default: 0 },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
   },
   { timestamps: true }
 );
@@ -28,19 +30,6 @@ const ProductSchema = new mongoose.Schema(
 ProductSchema.pre("save", function (next) {
   this.totalWeight = parseFloat(this.weight) * this.stock;
   this.totalBags = Math.floor(this.totalWeight / this.bagsizes[0].size);
-  next();
-});
-
-ProductSchema.pre("findOneAndUpdate", function (next) {
-  const update = this.getUpdate();
-  if (update.weight !== undefined || update.stock !== undefined) {
-    const weight = parseFloat(update.weight || this._update.weight);
-    const stock = update.stock || this._update.stock;
-    update.totalWeight = weight * stock;
-    update.totalBags = Math.floor(
-      update.totalWeight / this._update.bagsizes[0].size
-    );
-  }
   next();
 });
 

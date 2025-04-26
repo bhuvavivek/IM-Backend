@@ -20,7 +20,11 @@ const SalesSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
+        price: { type: Number, required: true },
         quantity: { type: Number, required: true },
+        bag: { type: Number, required: true },
+        total: { type: Number, required: true },
+        name: { type: String, required: true },
       },
     ],
     // 💰 Core Amounts

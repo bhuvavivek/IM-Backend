@@ -68,12 +68,19 @@ const updateProduct = async (req, res) => {
       unit,
       price,
       weight,
-      stock,
       bagssize,
       isBesan,
       isRawMaterial,
       isWastage,
     } = req.body;
+
+    const product = await Product.findById(req.query.productId);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const totalBags = Math.floor((weight * product.stock) / bagssize);
 
     const updatedProduct = await Product.findByIdAndUpdate(
       req.query.productId,
@@ -83,10 +90,11 @@ const updateProduct = async (req, res) => {
           price,
           unit,
           weight,
-          stock,
           isBesan,
           isRawMaterial,
           isWastage,
+          totalBags: totalBags,
+          totalWeight: weight * product.stock,
         },
         $push: {
           bagsizes: {
@@ -112,7 +120,14 @@ const updateProduct = async (req, res) => {
 // Delete Product
 const deleteProduct = async (req, res) => {
   try {
-    await Product.findByIdAndDelete(req.query.productId);
+    await Product.findByIdAndUpdate(
+      req.query.productId,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      { new: true }
+    );
     res.json({ message: "Product deleted" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting product", error });
