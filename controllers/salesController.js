@@ -58,14 +58,19 @@ const addSale = async (req, res) => {
       if (!product) {
         throw new Error(`Product not found: ${item.productId}`);
       }
-      const total = product.price * item.quantity;
+      const total = item.price * item.quantity;
       subtotal += total;
 
       return {
         productId: item.productId,
+        price: item.price,
         quantity: item.quantity,
-        price: product.price,
+        bag: item.bag,
         total,
+        name: item.name,
+        weight: item.weight,
+        totalweight: item.totalweight,
+        bagsize: item.bagsize,
       };
     });
 
@@ -210,11 +215,15 @@ const getSale = async (req, res) => {
       pendingAmount: sale.pendingAmount || 0,
       isFullyPaid: sale.isFullyPaid || false,
       items: sale.items.map((item) => ({
-        productId: item.productId._id,
-        name: item.productId.name,
-        price: item.productId.price,
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
         quantity: item.quantity,
         total: item.total,
+        bag: item.bag,
+        weight: item.weight,
+        totalweight: item.totalweight,
+        bagsize: item.bagsize,
       })),
       user: {
         name: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
@@ -238,6 +247,7 @@ const getSale = async (req, res) => {
 
     res.status(200).json({ sale: formattedSale });
   } catch (error) {
+    console.error("Error fetching sale:", error);
     res.status(500).json({ error: error.message });
   }
 };

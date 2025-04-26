@@ -25,6 +25,9 @@ const SalesSchema = new mongoose.Schema(
         bag: { type: Number, required: true },
         total: { type: Number, required: true },
         name: { type: String, required: true },
+        weight: { type: Number, required: true },
+        totalweight: { type: Number, required: true },
+        bagsize: { type: Number, required: true },
       },
     ],
     // 💰 Core Amounts
