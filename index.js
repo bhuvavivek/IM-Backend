@@ -3,10 +3,12 @@ import dotenv from "dotenv";
 import express from "express";
 import ConnectMongodb from "./config/db.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import customerRoutes from "./routes/customerRoute.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import InvoiceRoutes from "./routes/InvoiceRoute.js";
 import productRoutes from "./routes/productRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
@@ -31,6 +33,8 @@ app.use("/api/vendors", vendorRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/invoices", InvoiceRoutes);
 app.use("/api/expense", expenseRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/reports", reportRoutes);
 
 async function startServer() {
   try {
