@@ -13,33 +13,28 @@ const ExpenseSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-
     date: {
       type: Date,
       default: Date.now,
+      required: true,
     },
-
     description: {
       type: String,
       trim: true,
     },
-
     isDeleted: {
       type: Boolean,
       default: false,
     },
-
     deletedAt: {
       type: Date,
     },
-
     gstPercentage: {
       type: Number,
       default: 0,
       min: 0,
       max: 100,
     },
-
     gstAmount: {
       type: Number,
       default: 0,
@@ -49,6 +44,10 @@ const ExpenseSchema = new mongoose.Schema(
     isGstApplicable: {
       type: Boolean,
       default: false,
+    },
+    total: {
+      type: Number,
+      required: true,
     },
   },
   { timestamps: true }

@@ -162,7 +162,7 @@ const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.query.productId);
     if (!product) {
-      res.status(404).json({
+      return res.status(404).json({
         message: "Product Not Founde with this id",
       });
     }
