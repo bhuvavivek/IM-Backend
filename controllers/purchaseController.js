@@ -70,6 +70,8 @@ const addPurchase = async (req, res) => {
         weight: item.weight,
         totalweight: item.totalweight,
         bagsize: item.bagsize,
+        unit: item.unit,
+        hsnCode: product.HSNCode,
       };
     });
     const paymentSendDate = isPaymentDone ? new Date() : null;
@@ -188,7 +190,7 @@ const getPurchase = async (req, res) => {
       pendingAmount: purchase.pendingAmount,
       isFullyPaid: purchase.isFullyPaid || false,
       items: purchase.items.map((item) => ({
-        productId: item.productId,
+        productId: item.productId._id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -197,6 +199,8 @@ const getPurchase = async (req, res) => {
         weight: item.weight,
         totalweight: item.totalweight,
         bagsize: item.bagsize,
+        unit: item.unit,
+        hsnCode: item.hsnCode,
       })),
       user: {
         name: `${vendor.firstName || ""}  ${vendor.lastName || ""}`.trim(),
@@ -206,6 +210,13 @@ const getPurchase = async (req, res) => {
           vendor?.shippingAddress?.country || ""
         } - ${vendor?.shippingAddress?.pinCode || ""}`,
         phoneNumber: vendor?.contact || "",
+        businessName: vendor?.businessInformation?.businessName || "",
+        businessFullAddress: `${vendor?.businessInformation?.Address || ""}, ${
+          vendor?.businessInformation?.city || ""
+        }, ${vendor?.businessInformation?.state || ""}, ${
+          vendor?.businessInformation?.country || ""
+        } - ${vendor?.businessInformation?.pinCode || ""}`,
+        gstNumber: vendor?.businessInformation?.gstNumber || "",
       },
       paymentSendDate: purchase.paymentSendDate,
       payments: purchase.payments,

@@ -24,7 +24,7 @@ const getCustomer = async (req, res) => {
     const customerId = req.params.customerId;
     const customer = await Customer.findById(customerId);
     if (!customer) {
-      res.status(404).json({ message: "customer not found" });
+      return res.status(404).json({ message: "customer not found" });
     }
 
     res.status(200).json({ customer });
@@ -42,7 +42,7 @@ const updateCustomer = async (req, res) => {
     });
 
     if (!customer) {
-      res.status(404).json({ message: "customer not found" });
+      return res.status(404).json({ message: "customer not found" });
     }
 
     res.status(200).json({ customer });

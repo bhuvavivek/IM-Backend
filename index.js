@@ -2,6 +2,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import ConnectMongodb from "./config/db.js";
+import Customer from "./models/Customer.js";
+import Expense from "./models/Expense.js";
+import Invoice from "./models/Invoice.js";
+import Product from "./models/Product.js";
+import Purchase from "./models/Purchase.js";
+import Sales from "./models/Sales.js";
+import Stock from "./models/Stock.js";
+import Vendor from "./models/Vendor.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import customerRoutes from "./routes/customerRoute.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
@@ -35,6 +43,25 @@ app.use("/api/invoices", InvoiceRoutes);
 app.use("/api/expense", expenseRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/reports", reportRoutes);
+
+const clearDB = async (req, res) => {
+  try {
+    await Product.deleteMany({});
+    await Stock.deleteMany({});
+    await Purchase.deleteMany({});
+    await Sales.deleteMany({});
+    await Customer.deleteMany({});
+    await Vendor.deleteMany({});
+    await Expense.deleteMany({});
+    await Invoice.deleteMany({});
+
+    res.status(200).json({ message: "Database cleared" });
+  } catch (error) {
+    res.status(500).json({ message: "Error clearing database", error });
+  }
+};
+
+app.use("/clean", clearDB);
 
 async function startServer() {
   try {

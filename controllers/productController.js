@@ -13,6 +13,7 @@ const addProduct = async (req, res) => {
       isBesan,
       isRawMaterial,
       isWastage,
+      HSNCode,
     } = req.body;
 
     const product = await Product.create({
@@ -25,6 +26,7 @@ const addProduct = async (req, res) => {
       isBesan,
       isRawMaterial,
       isWastage,
+      HSNCode,
     });
 
     // create a stock here for the product
@@ -72,6 +74,7 @@ const updateProduct = async (req, res) => {
       isBesan,
       isRawMaterial,
       isWastage,
+      HSNCode,
     } = req.body;
 
     const product = await Product.findById(req.query.productId);
@@ -95,6 +98,7 @@ const updateProduct = async (req, res) => {
           isWastage,
           totalBags: totalBags,
           totalWeight: weight * product.stock,
+          HSNCode,
         },
         $push: {
           bagsizes: {
@@ -137,7 +141,9 @@ const deleteProduct = async (req, res) => {
 // Get All Products
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
+    const products = await Product.find({
+      isDeleted: false,
+    }).sort({ createdAt: -1 });
 
     // Format the response to include the latest bagsize
     const formattedProducts = products.map((product) => ({
@@ -170,6 +176,9 @@ const getProductById = async (req, res) => {
     res.status(500).json({ message: "Error fetching product", error });
   }
 };
+
+// wrote api to clear whole db and all schema
+
 export {
   addProduct,
   deleteProduct,

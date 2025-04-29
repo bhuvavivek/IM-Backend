@@ -21,7 +21,7 @@ export const stockChange = async (req, res) => {
       stock.quantity += change;
       stock.history.push({
         change: change,
-        reason: "Stock added" || reason,
+        reason: reason || "Stock added",
         changeType,
       });
       product.stock += change; // Update product stock
@@ -31,7 +31,7 @@ export const stockChange = async (req, res) => {
       stock.quantity -= change;
       stock.history.push({
         change: change,
-        reason: "Stock removed" || reason,
+        reason: reason || "Stock removed",
         changeType,
       });
       product.stock -= change; // Update product stock

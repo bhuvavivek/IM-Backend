@@ -71,6 +71,8 @@ const addSale = async (req, res) => {
         weight: item.weight,
         totalweight: item.totalweight,
         bagsize: item.bagsize,
+        unit: item.unit,
+        hsnCode: product.HSNCode,
       };
     });
 
@@ -214,7 +216,7 @@ const getSale = async (req, res) => {
       pendingAmount: sale.pendingAmount || 0,
       isFullyPaid: sale.isFullyPaid || false,
       items: sale.items.map((item) => ({
-        productId: item.productId,
+        productId: item.productId._id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -223,6 +225,8 @@ const getSale = async (req, res) => {
         weight: item.weight,
         totalweight: item.totalweight,
         bagsize: item.bagsize,
+        unit: item.unit,
+        hsnCode: item.hsnCode,
       })),
       user: {
         name: `${customer?.firstName || ""} ${customer?.lastName || ""}`.trim(),
@@ -232,6 +236,15 @@ const getSale = async (req, res) => {
           customer?.shippingAddress?.country || ""
         } - ${customer?.shippingAddress?.pinCode || ""}`,
         phoneNumber: customer?.contact || "",
+        businessName: customer?.businessInformation?.businessName || "",
+        businessFullAddress: `${
+          customer?.businessInformation?.Address || ""
+        }, ${customer?.businessInformation?.city || ""}, ${
+          customer?.businessInformation?.state || ""
+        }, ${customer?.businessInformation?.country || ""} - ${
+          customer?.businessInformation?.pinCode || ""
+        }`,
+        gstNumber: customer?.businessInformation?.gstNumber || "",
       },
       salesperson: {
         name: sale.salesperson?.name || "",

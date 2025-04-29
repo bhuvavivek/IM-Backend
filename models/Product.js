@@ -11,6 +11,7 @@ const ProductSchema = new mongoose.Schema(
     isBesan: { type: Boolean, default: true },
     isRawMaterial: { type: Boolean, default: false },
     isWastage: { type: Boolean, default: false },
+    HSNCode: { type: String, required: true },
     bagsizes: {
       type: [
         {

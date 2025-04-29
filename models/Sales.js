@@ -28,6 +28,8 @@ const SalesSchema = new mongoose.Schema(
         weight: { type: Number, required: true },
         totalweight: { type: Number, required: true },
         bagsize: { type: Number, required: true },
+        unit: { type: String, enum: ["KG", "GRAM", "TON"], default: "KG" },
+        hsnCode: { type: String, required: true },
       },
     ],
     // 💰 Core Amounts

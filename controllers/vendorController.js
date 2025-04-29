@@ -23,7 +23,7 @@ const getVendor = async (req, res) => {
     const vendorId = req.params.vendorId;
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) {
-      res.status(404).json({ message: "vendor not found" });
+      return res.status(404).json({ message: "vendor not found" });
     }
 
     res.status(200).json({ vendor });
@@ -41,7 +41,7 @@ const updateVendor = async (req, res) => {
     });
 
     if (!vendor) {
-      res.status(404).json({ message: "vendor not found" });
+      return res.status(404).json({ message: "vendor not found" });
     }
     res.status(200).json({ vendor });
   } catch (error) {
