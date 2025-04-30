@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import Product from "../models/Product.js";
 import Sales from "../models/Sales.js";
+import Stock from "../models/Stock.js";
 
 const determineStatus = (amountPaid, totalAmount, dueDate) => {
   if (amountPaid >= totalAmount) return "Paid";
@@ -24,6 +26,8 @@ const generateUniqueInvoiceNumber = async () => {
 };
 
 const addSale = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const {
       customerId,
@@ -39,16 +43,14 @@ const addSale = async (req, res) => {
       return res.status(400).json({ error: "At least one item is required" });
     }
 
-    // Fetch product prices from the database
     const productDetails = await Product.find({
       _id: { $in: items.map((item) => item.productId) },
-    });
+    }).session(session);
 
     if (productDetails.length !== items.length) {
       return res.status(400).json({ error: "One or more products not found" });
     }
 
-    // Calculate subtotal, GST amount, and total amount
     let subtotal = 0;
 
     const processedItems = items.map((item) => {
@@ -60,6 +62,8 @@ const addSale = async (req, res) => {
       }
       const total = item.price * item.quantity;
       subtotal += total;
+
+      updateStock(product, item, session);
 
       return {
         productId: item.productId,
@@ -81,12 +85,12 @@ const addSale = async (req, res) => {
 
     let earlyPaymentDiscount = 0;
     if (
-      isPaymentDone && // Check if payment is done
-      paymentAmount >= subtotal && // Ensure payment amount covers the subtotal
+      isPaymentDone &&
+      paymentAmount >= subtotal &&
       receivedDate &&
-      receivedDate < due // Check if payment date is before due date
+      receivedDate < due
     ) {
-      earlyPaymentDiscount = subtotal * 0.02; // Apply 2% discount
+      earlyPaymentDiscount = subtotal * 0.02;
     }
 
     const gstBase = subtotal - earlyPaymentDiscount;
@@ -118,10 +122,9 @@ const addSale = async (req, res) => {
     isFullyPaid = amountPaid >= totalAmount;
     const status = determineStatus(amountPaid, totalAmount, dueDate);
 
-    // Generate unique invoice number
     const invoiceNumber = await generateUniqueInvoiceNumber();
     const pendingAmount = totalAmount - amountPaid;
-    // Create sale record
+
     const sale = new Sales({
       invoiceNumber,
       customerId,
@@ -146,12 +149,48 @@ const addSale = async (req, res) => {
       status,
     });
 
-    await sale.save();
-    await sale.populate(["customerId", "items.productId"]); // Populating customer and product details
-
+    await sale.save({ session });
+    await sale.populate(["customerId", "items.productId"]);
+    await session.commitTransaction();
     res.status(201).json(sale);
   } catch (error) {
+    await session.abortTransaction();
     res.status(400).json({ error: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
+const updateStock = async (product, item, session) => {
+  try {
+    // Update Stock record for the product
+    const stock = await Stock.findOne({ productId: product._id }).session(
+      session
+    );
+    if (stock) {
+      // Decrease the stock quantity
+      stock.quantity -= item.quantity;
+      stock.history.push({
+        change: item.quantity,
+        reason: "Sale",
+        changeType: "STOCK OUT",
+      });
+
+      // Save the stock changes
+      await stock.save({ session });
+    }
+
+    // Update the product's stock
+    product.stock -= item.quantity;
+    product.totalWeight = parseFloat(product.weight) * product.stock;
+    product.totalBags = Math.floor(
+      product.totalWeight / product.bagsizes[0].size
+    );
+
+    // Save the product changes
+    await product.save({ session });
+  } catch (error) {
+    console.error("Error updating stock:", error.message);
   }
 };
 

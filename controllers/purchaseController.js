@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
+import Stock from "../models/Stock.js";
 
 const determineStatus = (amountSent, totalAmount, dueDate) => {
   if (amountSent >= totalAmount) return "Paid";
@@ -24,6 +26,8 @@ const generateUniqueInvoiceNumber = async () => {
 };
 
 const addPurchase = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const {
       vendorId,
@@ -41,7 +45,7 @@ const addPurchase = async (req, res) => {
     // Fetch product prices from the database
     const productDetails = await Product.find({
       _id: { $in: items.map((item) => item.productId) },
-    });
+    }).session(session);
 
     if (productDetails.length !== items.length) {
       return res.status(400).json({ error: "One or more products not found" });
@@ -59,7 +63,7 @@ const addPurchase = async (req, res) => {
       }
       const total = item.price * item.quantity;
       subtotal += total;
-
+      updateStock(product, item, session);
       return {
         productId: item.productId,
         price: item.price,
@@ -123,12 +127,48 @@ const addPurchase = async (req, res) => {
       paymentSendDate,
     });
 
-    await purchase.save();
+    await purchase.save({ session });
     await purchase.populate(["vendorId", "items.productId"]); // Populating customer and product details
-
+    await session.commitTransaction();
     res.status(201).json(purchase);
   } catch (error) {
+    await session.abortTransaction();
     res.status(400).json({ error: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
+const updateStock = async (product, item, session) => {
+  try {
+    // Update Stock record for the product
+    const stock = await Stock.findOne({ productId: product._id }).session(
+      session
+    );
+    if (stock) {
+      // Decrease the stock quantity
+      stock.quantity += item.quantity;
+      stock.history.push({
+        change: item.quantity,
+        reason: "Purchase",
+        changeType: "STOCK IN",
+      });
+
+      // Save the stock changes
+      await stock.save({ session });
+    }
+
+    // Update the product's stock
+    product.stock += item.quantity;
+    product.totalWeight = parseFloat(product.weight) * product.stock;
+    product.totalBags = Math.floor(
+      product.totalWeight / product.bagsizes[0].size
+    );
+
+    // Save the product changes
+    await product.save({ session });
+  } catch (error) {
+    console.error("Error updating stock:", error.message);
   }
 };
 
