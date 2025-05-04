@@ -4,7 +4,7 @@ import Stock from "../models/Stock.js";
 // Add stock for a product
 export const stockChange = async (req, res) => {
   try {
-    const { productId, lowStockThreshold, change, reason, changeType } =
+    const { productId, lowStockThreshold, change, reason, changeType, bags } =
       req.body;
 
     // Check if product exists
@@ -23,6 +23,7 @@ export const stockChange = async (req, res) => {
         change: change,
         reason: reason || "Stock added",
         changeType,
+        bags: bags,
       });
       product.stock += change; // Update product stock
     }
@@ -33,12 +34,11 @@ export const stockChange = async (req, res) => {
         change: change,
         reason: reason || "Stock removed",
         changeType,
+        bags: bags,
       });
       product.stock -= change; // Update product stock
     }
-    const totalWeight = parseFloat(product.weight) * product.stock;
-    const totalBags = Math.floor(totalWeight / product.bagsizes[0].size);
-    product.totalBags = totalBags;
+
     await stock.save();
     await product.save(); // Save updated product stock
     res.status(200).json({ message: "Stock updated successfully", stock });

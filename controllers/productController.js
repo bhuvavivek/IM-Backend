@@ -1,6 +1,15 @@
 import Product from "../models/Product.js";
 import Stock from "../models/Stock.js";
-// Add Product
+
+const processedBags = (bags) => {
+  const bagsData = bags.map((bag) => ({
+    size: bag.size,
+    quantity: bag.quantity,
+    weight: bag.weight ? bag.weight : bag.size * bag.quantity,
+  }));
+  return bagsData;
+};
+
 const addProduct = async (req, res) => {
   try {
     const {
@@ -9,12 +18,14 @@ const addProduct = async (req, res) => {
       unit,
       weight,
       stock,
-      bagssize,
+      bags,
       isBesan,
       isRawMaterial,
       isWastage,
       HSNCode,
     } = req.body;
+
+    const processedBagData = processedBags(bags);
 
     const product = await Product.create({
       name: name?.trim(),
@@ -22,7 +33,7 @@ const addProduct = async (req, res) => {
       stock,
       weight,
       unit,
-      bagsizes: [{ size: bagssize }], // Store as an array of objects
+      bags: processedBagData,
       isBesan,
       isRawMaterial,
       isWastage,
@@ -70,7 +81,7 @@ const updateProduct = async (req, res) => {
       unit,
       price,
       weight,
-      bagssize,
+      bags,
       isBesan,
       isRawMaterial,
       isWastage,
@@ -83,7 +94,9 @@ const updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const totalBags = Math.floor((weight * product.stock) / bagssize);
+    const processedBagData = processedBags(bags);
+
+    const totalweight = weight * product.stock;
 
     const updatedProduct = await Product.findByIdAndUpdate(
       req.query.productId,
@@ -96,26 +109,15 @@ const updateProduct = async (req, res) => {
           isBesan,
           isRawMaterial,
           isWastage,
-          totalBags: totalBags,
-          totalWeight: weight * product.stock,
+          bags: processedBagData,
+          totalWeight: Number(totalweight).toFixed(2),
           HSNCode,
-        },
-        $push: {
-          bagsizes: {
-            size: bagssize,
-            date: new Date(),
-          },
         },
       },
       { new: true }
     );
 
-    res.json({
-      ...updatedProduct.toObject(),
-      bagssize:
-        updatedProduct.bagsizes?.[updatedProduct.bagsizes.length - 1]?.size ||
-        0,
-    });
+    res.json({ message: "Product updated", product: updatedProduct });
   } catch (error) {
     res.status(500).json({ message: "Error updating product", error });
   }

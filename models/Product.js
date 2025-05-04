@@ -12,16 +12,13 @@ const ProductSchema = new mongoose.Schema(
     isRawMaterial: { type: Boolean, default: false },
     isWastage: { type: Boolean, default: false },
     HSNCode: { type: String, required: true },
-    bagsizes: {
-      type: [
-        {
-          size: { type: Number, required: true },
-          date: { type: Date, default: Date.now },
-        },
-      ],
-      default: [{ size: 50, date: Date.now() }],
-    },
-    totalBags: { type: Number, default: 0 },
+    bags: [
+      {
+        size: { type: Number, required: true },
+        quantity: { type: Number, required: true },
+        weight: { type: Number, required: true },
+      },
+    ],
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date },
   },
@@ -29,8 +26,8 @@ const ProductSchema = new mongoose.Schema(
 );
 
 ProductSchema.pre("save", function (next) {
-  this.totalWeight = parseFloat(this.weight) * this.stock;
-  this.totalBags = Math.floor(this.totalWeight / this.bagsizes[0].size);
+  const totalweight = parseFloat(this.weight) * this.stock;
+  this.totalWeight = Number(totalweight).toFixed(2);
   next();
 });
 

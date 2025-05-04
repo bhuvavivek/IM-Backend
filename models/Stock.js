@@ -15,6 +15,13 @@ const StockSchema = new mongoose.Schema(
         date: { type: Date, default: Date.now, required: true },
         reason: String,
         changeType: { type: String, enum: ["STOCK IN", "STOCK OUT"] },
+        bags: [
+          {
+            size: { type: Number, required: true },
+            quantity: { type: Number, required: true },
+            weight: { type: Number, required: true },
+          },
+        ],
       },
     ],
   },
