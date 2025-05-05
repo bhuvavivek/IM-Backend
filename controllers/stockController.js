@@ -14,7 +14,11 @@ export const stockChange = async (req, res) => {
     // Check if stock exists, update or create new
     let stock = await Stock.findOne({ productId });
     if (!stock) {
-      stock = new Stock({ productId, quantity: 0, history: [] });
+      stock = new Stock({
+        productId,
+        quantity: product.stock,
+        history: [],
+      });
     }
 
     if (changeType === "STOCK IN") {
@@ -111,6 +115,17 @@ export const getStocksHistory = async (req, res) => {
     ]);
 
     res.status(200).json({ stocks });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteStock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stock = await Stock.findByIdAndDelete(id);
+    if (!stock) return res.status(404).json({ message: "Stock not found" });
+    res.status(200).json({ message: "Stock deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

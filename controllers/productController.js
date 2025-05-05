@@ -49,7 +49,7 @@ const addProduct = async (req, res) => {
         history: [
           {
             change: product.stock,
-            reason: "Initial stock",
+            reason: "Opening stock",
             changeType: "STOCK IN",
           },
         ],
