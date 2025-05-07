@@ -5,6 +5,7 @@ import {
   deleteSale,
   getSale,
   getSaleInvoiceById,
+  getSaleLastInvoiceNumber,
   getSales,
   updateSale,
 } from "../controllers/salesController.js";
@@ -12,6 +13,7 @@ import {
 const router = express.Router();
 
 router.route("/").post(addSale).get(getSales);
+router.get("/lastInvoiceNumber", getSaleLastInvoiceNumber);
 router.post("/payment/:id", addPaymentToSale);
 router.get("/:id", getSale);
 router.delete("/:id", deleteSale);

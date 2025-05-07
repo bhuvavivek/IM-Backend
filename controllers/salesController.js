@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
 import Product from "../models/Product.js";
 import Sales from "../models/Sales.js";
 import Stock from "../models/Stock.js";
@@ -8,21 +7,6 @@ const determineStatus = (amountPaid, totalAmount, dueDate) => {
   if (amountPaid >= totalAmount) return "Paid";
   if (new Date() > new Date(dueDate)) return "Overdue";
   return "Pending";
-};
-
-const generateUniqueInvoiceNumber = async () => {
-  let invoiceNumber;
-  let isUnique = false;
-
-  while (!isUnique) {
-    invoiceNumber = `INV-${uuidv4().split("-")[0]}`;
-    const existingSale = await Sales.findOne({ invoiceNumber });
-    if (!existingSale) {
-      isUnique = true;
-    }
-  }
-
-  return invoiceNumber;
 };
 
 const addSale = async (req, res) => {
@@ -37,6 +21,7 @@ const addSale = async (req, res) => {
       isPaymentDone,
       paymentAmount,
       salesperson,
+      invoiceNumber,
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -124,11 +109,10 @@ const addSale = async (req, res) => {
     isFullyPaid = amountPaid >= totalAmount;
     const status = determineStatus(amountPaid, totalAmount, dueDate);
 
-    const invoiceNumber = await generateUniqueInvoiceNumber();
     const pendingAmount = totalAmount - amountPaid;
 
     const sale = new Sales({
-      invoiceNumber,
+      invoiceNumber: invoiceNumber,
       customerId,
       items: processedItems,
       subtotal,
@@ -379,6 +363,7 @@ const updateSale = async (req, res) => {
       isPaymentDone,
       paymentAmount,
       salesperson,
+      invoiceNumber,
     } = req.body;
 
     const sale = await Sales.findById(saleId).session(session);
@@ -465,6 +450,7 @@ const updateSale = async (req, res) => {
 
     // 5. Update Sale
     sale.items = processedItems;
+    sale.invoiceNumber = invoiceNumber;
     sale.subtotal = subtotal;
     sale.earlyPaymentDiscount = earlyPaymentDiscount;
     sale.gstPercentage = gstPercentage;
@@ -542,6 +528,7 @@ const getSaleInvoiceById = async (req, res) => {
     // Transform to frontend expected format
     const transformed = {
       _id: invoice._id,
+      invoiceNumber: invoice.invoiceNumber,
       createDate: invoice.createdAt,
       dueDate: invoice.dueDate,
       invoiceTo: invoice.customerId, // entire customer object (should match your frontend structure)
@@ -574,12 +561,29 @@ const getSaleInvoiceById = async (req, res) => {
   }
 };
 
+const getSaleLastInvoiceNumber = async (req, res) => {
+  try {
+    const lastInvoice = await Sales.findOne(
+      {},
+      {},
+      { sort: { createdAt: -1 } }
+    );
+    if (!lastInvoice) {
+      return res.status(404).json({ message: "No invoices found" });
+    }
+    res.status(200).json({ invoiceNumber: lastInvoice.invoiceNumber });
+  } catch (error) {
+    console.error("Error fetching last invoice number:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
 export {
   addPaymentToSale,
   addSale,
   deleteSale,
   getSale,
   getSaleInvoiceById,
+  getSaleLastInvoiceNumber,
   getSales,
   updateSale,
 };

@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
 
 const SalesSchema = new mongoose.Schema(
   {
     invoiceNumber: {
-      type: String,
+      type: Number,
       unique: true,
-      default: () => `INV-${uuidv4().split("-")[0]}`,
+      required: true,
     },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
 import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
 import Stock from "../models/Stock.js";
@@ -8,21 +7,6 @@ const determineStatus = (amountSent, totalAmount, dueDate) => {
   if (amountSent >= totalAmount) return "Paid";
   if (new Date() > new Date(dueDate)) return "Overdue";
   return "Pending";
-};
-
-const generateUniqueInvoiceNumber = async () => {
-  let invoiceNumber;
-  let isUnique = false;
-
-  while (!isUnique) {
-    invoiceNumber = `INV-${uuidv4().split("-")[0]}`;
-    const existingSale = await Purchase.findOne({ invoiceNumber });
-    if (!existingSale) {
-      isUnique = true;
-    }
-  }
-
-  return invoiceNumber;
 };
 
 const addPurchase = async (req, res) => {
@@ -36,6 +20,7 @@ const addPurchase = async (req, res) => {
       dueDate,
       isPaymentDone,
       paymentAmount,
+      invoiceNumber,
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -105,8 +90,6 @@ const addPurchase = async (req, res) => {
     isFullyPaid = amountSent >= totalAmount;
     const status = determineStatus(amountSent, totalAmount, dueDate);
 
-    // Generate unique invoice number
-    const invoiceNumber = await generateUniqueInvoiceNumber();
     const pendingAmount = totalAmount - amountSent;
 
     // Create purchase record
@@ -337,6 +320,7 @@ const updatePurchase = async (req, res) => {
       dueDate,
       isPaymentDone,
       paymentAmount,
+      invoiceNumber,
     } = req.body;
 
     const existingPurchase = await Purchase.findById(id).session(session);
@@ -420,6 +404,7 @@ const updatePurchase = async (req, res) => {
 
     Object.assign(existingPurchase, {
       vendorId,
+      invoiceNumber: invoiceNumber,
       items: processedItems,
       subtotal,
       gstPercentage,
@@ -495,6 +480,7 @@ const getPurchaseInvoiceById = async (req, res) => {
 
     const transformed = {
       _id: invoice._id,
+      invoiceNumber: invoice.invoiceNumber,
       createDate: invoice.createdAt,
       dueDate: invoice.purchaseDate,
       invoiceTo: invoice.vendorId,
@@ -527,12 +513,29 @@ const getPurchaseInvoiceById = async (req, res) => {
   }
 };
 
+const getPurchaseLastInvoiceNumber = async (req, res) => {
+  try {
+    const lastInvoice = await Purchase.findOne(
+      {},
+      {},
+      { sort: { createdAt: -1 } }
+    );
+    if (!lastInvoice) {
+      return res.status(404).json({ message: "No invoices found" });
+    }
+    res.status(200).json({ invoiceNumber: lastInvoice.invoiceNumber });
+  } catch (error) {
+    console.error("Error fetching last invoice number:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
 export {
   addPaymentToPurchase,
   addPurchase,
   deletePurchase,
   getPurchase,
   getPurchaseInvoiceById,
+  getPurchaseLastInvoiceNumber,
   getPurchases,
   updatePurchase,
 };
