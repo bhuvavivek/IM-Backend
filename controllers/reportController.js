@@ -801,6 +801,8 @@ const generateSalesReport = async (req, res) => {
           invoiceCount: { $addToSet: "$invoiceNumber" },
           totalGST: { $sum: "$gstAmount" },
           totalBags: { $sum: "$items.bag" },
+          firstInvoiceDate: { $min: "$createdAt" },
+          lastInvoiceDate: { $max: "$createdAt" },
         },
       },
       {
@@ -827,12 +829,16 @@ const generateSalesReport = async (req, res) => {
           invoiceCount: 1,
           totalGST: 1,
           totalBags: 1,
+          firstInvoiceDate: 1,
+          lastInvoiceDate: 1,
         },
       },
     ]);
 
     if (!salesSummary.length) {
-      return res.status(404).json({ message: "No sales found in date range." });
+      return res
+        .status(200)
+        .json({ message: "No sales found in date range.", summary: [] });
     }
 
     // Generate Excel if download is true
@@ -909,7 +915,7 @@ const generateSalesReport = async (req, res) => {
       });
     }
 
-    return res.json({ success: true, data: salesSummary });
+    return res.json({ success: true, summary: salesSummary });
   } catch (error) {
     console.error("Sales summary error:", error);
     res.status(500).json({
