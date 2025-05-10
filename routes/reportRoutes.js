@@ -12,7 +12,7 @@ const router = Router();
 router.get("/overall", getOverallReport);
 // GET /api/reports/sales-summary?startDate=2024-01-01&endDate=2024-12-31&download=true
 router.get("/sales-summary", generateSalesReport);
-router.get("/sales/:customerId", generateCustomerReport);
+router.get("/sale/customer/:customerId", generateCustomerReport);
 router.get("/customer-invoice/:customerId", getCustomerInvoiceReport);
 router.get("/customer-purchase", generateCustomerPurchaseReport);
 export default router;
