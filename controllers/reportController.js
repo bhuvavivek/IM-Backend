@@ -1,7 +1,6 @@
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
-import XLSX from "xlsx";
 import Customer from "../models/Customer.js";
 import Expense from "../models/Expense.js";
 import Product from "../models/Product.js";
@@ -400,230 +399,6 @@ const getProductWiseReport = async (req, res) => {
   }
 };
 
-const generateDetailedInvoiceReport = async (req, res) => {
-  try {
-    const {
-      from,
-      to,
-      customerOrVendor = "customer",
-      customerId = "67ebeb39f709f895e471be86",
-      vendorId,
-    } = req.query;
-
-    const fromDate = from ? new Date(from) : new Date(0); // Default to the Unix epoch (January 1, 1970)
-    const toDate = to ? new Date(to) : new Date(); // Default to the current date
-
-    const filter = { createdAt: { $gte: fromDate, $lte: toDate } };
-
-    if (customerOrVendor === "customer" && customerId) {
-      filter.customerId = customerId;
-    }
-    if (customerOrVendor === "vendor" && vendorId) {
-      filter.vendorId = vendorId;
-    }
-
-    const invoices = await Sales.aggregate([
-      { $unwind: "$items" },
-      {
-        $lookup: {
-          from: "products",
-          localField: "items.productId",
-          foreignField: "_id",
-          as: "productDetails",
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          invoiceNumber: 1,
-          customerId: 1,
-          items: 1,
-          subtotal: 1,
-          gstPercentage: 1,
-          gstAmount: 1,
-          cgst: 1,
-          sgst: 1,
-          totalAmount: 1,
-          dueDate: 1,
-          amountPaid: 1,
-          pendingAmount: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      },
-    ]);
-
-    if (!invoices.length) {
-      return res.status(200).json({ status: "success", data: [] });
-    }
-
-    // Create rows: product-wise
-    let csvData = [];
-    let summaryRows = [];
-    let grandTotal = {
-      bags: 0,
-      weight: 0,
-      amount: 0,
-      cgst: 0,
-      sgst: 0,
-      totalAmount: 0,
-      paidAmount: 0,
-      pendingAmount: 0,
-      balance: 0,
-    };
-
-    const allProductsSet = new Set();
-    invoices.forEach((inv) => allProductsSet.add(inv.items.name)); // Assuming 'name' is the product name
-    const allProducts = Array.from(allProductsSet);
-
-    const invoiceGroups = invoices.reduce((acc, curr) => {
-      acc[curr.invoiceNumber] = acc[curr.invoiceNumber] || [];
-      acc[curr.invoiceNumber].push(curr);
-      return acc;
-    }, {});
-
-    for (const [invoiceNumber, products] of Object.entries(invoiceGroups)) {
-      let invoiceTotals = {
-        bags: 0,
-        weight: 0,
-        amount: 0,
-        cgst: 0,
-        sgst: 0,
-        totalAmount: 0,
-        paidAmount: 0,
-        pendingAmount: 0,
-        balance: 0,
-      };
-
-      products.forEach((product) => {
-        // Use price from sale or purchase item (product.items.price)
-        const price = product.items.price;
-
-        invoiceTotals.bags += product.items.bag;
-        invoiceTotals.weight += product.items.totalweight;
-        invoiceTotals.amount += product.items.total;
-        invoiceTotals.cgst += product.cgst;
-        invoiceTotals.sgst += product.sgst;
-        invoiceTotals.totalAmount =
-          product.subtotal + (product.cgst || 0) + (product.sgst || 0);
-        invoiceTotals.paidAmount = product.amountPaid;
-        invoiceTotals.pendingAmount = product.pendingAmount;
-        invoiceTotals.balance =
-          (product.subtotal || 0) - (product.amountPaid || 0);
-
-        csvData.push({
-          "Invoice Number": product.invoiceNumber,
-          "Date of Bill": product.createdAt.toISOString().split("T")[0],
-          "Product Name": product.items.name, // Adjusted to reflect your data structure
-          "Bag Size (kg)": product.items.bagsize,
-          "Qty (Number of Bags)": product.items.bag,
-          "Total Weight (kg)": product.items.totalweight,
-          "Item Price": price, // Now using the price from the sale/purchase
-          Amount: product.items.total,
-          CGST: product.cgst,
-          SGST: product.sgst,
-          "Total Amount":
-            product.subtotal + (product.cgst || 0) + (product.sgst || 0),
-          "Paid Amount": product.amountPaid,
-          "Pending Amount": product.pendingAmount,
-          Balance: (product.subtotal || 0) - (product.amountPaid || 0),
-          ...Object.fromEntries(
-            allProducts.map((p) => [
-              p,
-              p === product.items.name ? `${product.items.totalweight} kg` : "",
-            ])
-          ),
-        });
-      });
-
-      // Summary row for invoice
-      summaryRows.push({
-        "Invoice Number": "Summary",
-        "Date of Bill": "",
-        "Product Name": "",
-        "Bag Size (kg)": "",
-        "Qty (Number of Bags)": "",
-        "Total Weight (kg)": `${invoiceTotals.weight} kg`,
-        "Item Price": "",
-        Amount: invoiceTotals.amount,
-        CGST: invoiceTotals.cgst,
-        SGST: invoiceTotals.sgst,
-        "Total Amount": invoiceTotals.totalAmount,
-        "Paid Amount": invoiceTotals.paidAmount,
-        "Pending Amount": invoiceTotals.pendingAmount,
-        Balance: invoiceTotals.balance,
-        ...Object.fromEntries(
-          allProducts.map((p) => {
-            const prod = products.find((pr) => pr.items.name === p);
-            return [p, prod ? `${prod.items.totalweight} kg` : ""];
-          })
-        ),
-      });
-
-      grandTotal.bags += invoiceTotals.bags;
-      grandTotal.weight += invoiceTotals.weight;
-      grandTotal.amount += invoiceTotals.amount;
-      grandTotal.cgst += invoiceTotals.cgst;
-      grandTotal.sgst += invoiceTotals.sgst;
-      grandTotal.totalAmount += invoiceTotals.totalAmount;
-      grandTotal.paidAmount += invoiceTotals.paidAmount;
-      grandTotal.pendingAmount += invoiceTotals.pendingAmount;
-      grandTotal.balance += invoiceTotals.balance;
-    }
-
-    // Push Total
-    summaryRows.push({
-      "Invoice Number": "Total",
-      "Date of Bill": "",
-      "Product Name": "",
-      "Bag Size (kg)": "",
-      "Qty (Number of Bags)": `${grandTotal.bags} Bags`,
-      "Total Weight (kg)": `${grandTotal.weight} kg`,
-      "Item Price": "",
-      Amount: grandTotal.amount,
-      CGST: grandTotal.cgst,
-      SGST: grandTotal.sgst,
-      "Total Amount": grandTotal.totalAmount,
-      "Paid Amount": grandTotal.paidAmount,
-      "Pending Amount": grandTotal.pendingAmount,
-      Balance: grandTotal.balance,
-      ...Object.fromEntries(
-        allProducts.map((p) => {
-          const totalProductWeight = invoices
-            .filter((inv) => inv.items.name === p)
-            .reduce((sum, curr) => sum + curr.items.totalweight, 0);
-          return [p, `${totalProductWeight} kg`];
-        })
-      ),
-    });
-
-    // Final Data
-    const finalCsvData = [...csvData, ...summaryRows];
-
-    // Generate Excel file
-    const ws = XLSX.utils.json_to_sheet(finalCsvData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoice Report");
-
-    // Write Excel file to response
-    const fileBuffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
-
-    // Send file as response
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=invoice_report.xlsx"
-    );
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.send(fileBuffer);
-  } catch (error) {
-    console.error("Error generating detailed invoice report:", error);
-    res.status(500).json({ status: "error", message: error.message });
-  }
-};
-
 const generateCustomerReport = async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -925,6 +700,7 @@ const generateSalesReport = async (req, res) => {
   }
 };
 
+// NEED TO MODIFY THIS ONE
 const generateCustomerPurchaseReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -1073,11 +849,39 @@ const generateCustomerPurchaseReport = async (req, res) => {
   }
 };
 
+const getCustomerInvoiceReport = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+
+    const filter = {
+      customerId,
+      ...(startDate || endDate ? { createdAt: dateFilter } : {}),
+    };
+
+    const sales = await Sales.find(filter)
+      .select(
+        "invoiceNumber subtotal gstAmount totalAmount amountPaid pendingAmount status createdAt dueDate"
+      )
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ customerInvoice: sales });
+  } catch (error) {
+    console.error("Error fetching invoice report:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 export {
   generateCustomerPurchaseReport,
   generateCustomerReport,
-  generateDetailedInvoiceReport,
   generateSalesReport,
+  getCustomerInvoiceReport,
   getOverallReport,
   getPartyWiseReport,
   getProductWiseReport,
