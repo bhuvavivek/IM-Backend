@@ -1,10 +1,11 @@
 import { Router } from "express";
 import {
-  generateCustomerPurchaseReport,
   generateCustomerReport,
   generateSalesReport,
   getCustomerInvoiceReport,
   getOverallReport,
+  getProductReport,
+  getStockSummaryReport,
 } from "../controllers/reportController.js";
 
 const router = Router();
@@ -14,5 +15,6 @@ router.get("/overall", getOverallReport);
 router.get("/sales-summary", generateSalesReport);
 router.get("/sale/customer/:customerId", generateCustomerReport);
 router.get("/customer-invoice/:customerId", getCustomerInvoiceReport);
-router.get("/customer-purchase", generateCustomerPurchaseReport);
+router.get("/stock-summary", getStockSummaryReport);
+router.get("/product/:productId", getProductReport);
 export default router;

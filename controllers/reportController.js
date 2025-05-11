@@ -399,6 +399,8 @@ const getProductWiseReport = async (req, res) => {
   }
 };
 
+// sale report
+
 const generateCustomerReport = async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -700,155 +702,6 @@ const generateSalesReport = async (req, res) => {
   }
 };
 
-// NEED TO MODIFY THIS ONE
-const generateCustomerPurchaseReport = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-
-    const sales = await Sales.find({
-      createdAt: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      },
-    })
-      .populate("customerId")
-      .exec();
-
-    const customerMap = {};
-
-    // Aggregate data
-    sales.forEach((invoice) => {
-      const customerName = invoice.customerId.businessInformation.businessName;
-
-      if (!customerMap[customerName]) {
-        customerMap[customerName] = {};
-      }
-
-      invoice.items.forEach((item) => {
-        const productKey = item.name + "-" + item.bagsize;
-        if (!customerMap[customerName][productKey]) {
-          customerMap[customerName][productKey] = {
-            productName: item.name,
-            unit: item.unit,
-            totalQuantity: 0,
-            totalBags: 0,
-            totalWeight: 0,
-            totalAmount: 0,
-          };
-        }
-
-        customerMap[customerName][productKey].totalQuantity += item.quantity;
-        customerMap[customerName][productKey].totalBags += item.bag;
-        customerMap[customerName][productKey].totalWeight += item.totalweight;
-        customerMap[customerName][productKey].totalAmount += item.total;
-      });
-    });
-
-    const workbook = new ExcelJS.Workbook();
-
-    for (const [customer, productData] of Object.entries(customerMap)) {
-      const sheet = workbook.addWorksheet(customer.substring(0, 31)); // Excel tab name limit
-
-      let data = Object.values(productData);
-
-      let totalAmount = 0;
-      let totalWeight = 0;
-      let maxWeight = -Infinity;
-      let minWeight = Infinity;
-      let mostPurchased = null;
-      let leastPurchased = null;
-
-      data.forEach((p) => {
-        totalAmount += p.totalAmount;
-        totalWeight += p.totalWeight;
-
-        if (p.totalWeight > maxWeight) {
-          maxWeight = p.totalWeight;
-          mostPurchased = p.productName;
-        }
-
-        if (p.totalWeight < minWeight) {
-          minWeight = p.totalWeight;
-          leastPurchased = p.productName;
-        }
-      });
-
-      sheet.columns = [
-        { header: "Product", key: "productName", width: 25 },
-        { header: "Unit", key: "unit", width: 10 },
-        { header: "Quantity", key: "totalQuantity", width: 12 },
-        { header: "Bags", key: "totalBags", width: 10 },
-        { header: "Weight", key: "totalWeight", width: 15 },
-        { header: "Amount (Rs)", key: "totalAmount", width: 15 },
-        { header: "% by Amount", key: "percentAmount", width: 15 },
-        { header: "% by Weight", key: "percentWeight", width: 15 },
-      ];
-
-      data.forEach((p) => {
-        const percentAmount =
-          totalAmount > 0
-            ? ((p.totalAmount / totalAmount) * 100).toFixed(2) + "%"
-            : "0%";
-        const percentWeight =
-          totalWeight > 0
-            ? ((p.totalWeight / totalWeight) * 100).toFixed(2) + "%"
-            : "0%";
-        sheet.addRow({ ...p, percentAmount, percentWeight });
-      });
-
-      sheet.addRow({});
-      sheet.addRow([
-        "Most Purchased Product",
-        "",
-        "",
-        "",
-        `${mostPurchased} (${maxWeight} ${data[0]?.unit})`,
-      ]);
-      sheet.addRow([
-        "Least Purchased Product",
-        "",
-        "",
-        "",
-        `${leastPurchased} (${minWeight} ${data[0]?.unit})`,
-      ]);
-      sheet.addRow(["Total Amount", "", "", "", "", totalAmount]);
-      sheet.addRow(["Total Weight", "", "", "", "", totalWeight]);
-    }
-
-    // Save Excel file
-    const reportsDir = path.join(process.cwd(), "reports");
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
-    }
-
-    const filePath = path.join(
-      reportsDir,
-      `customer_report_${Date.now()}.xlsx`
-    );
-    await workbook.xlsx.writeFile(filePath);
-
-    console.log(`✅ Excel report generated: ${filePath}`);
-
-    // Send file for download
-    res.download(filePath, (err) => {
-      if (err) {
-        console.error("❌ Error downloading file:", err);
-        res.status(500).send("Error downloading file");
-      }
-
-      // Cleanup after download
-      fs.unlink(filePath, (unlinkErr) => {
-        if (unlinkErr) {
-          console.error("❌ Error deleting file:", unlinkErr);
-        }
-      });
-    });
-  } catch (error) {
-    console.error("❌ Error generating Excel report:", error);
-    res.status(500).send("Error generating report");
-  }
-};
-
 const getCustomerInvoiceReport = async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -877,12 +730,381 @@ const getCustomerInvoiceReport = async (req, res) => {
   }
 };
 
+// sale
+const getProductSalesReport = async ({ productId, startDate, endDate }) => {
+  const matchStage = {
+    "items.productId": productId,
+  };
+  if (startDate || endDate) {
+    matchStage.createdAt = {};
+    if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+    if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+  }
+
+  const sales = await Sales.aggregate([
+    { $unwind: "$items" },
+    { $match: matchStage },
+    {
+      $group: {
+        _id: "$items.productId",
+        name: { $first: "$items.name" },
+        unit: { $first: "$items.unit" },
+        totalQuantity: { $sum: "$items.quantity" },
+        totalWeight: { $sum: "$items.totalweight" },
+        totalBags: { $sum: "$items.bag" },
+      },
+    },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "productData",
+      },
+    },
+    {
+      $unwind: "$productData",
+    },
+    {
+      $project: {
+        name: 1,
+        unit: 1,
+        totalQuantity: 1,
+        totalWeight: 1,
+        totalBags: 1,
+        stock: "$productData.stock",
+      },
+    },
+  ]);
+
+  return sales;
+};
+
+// purchase
+const getProductPurchasesReport = async ({ productId, startDate, endDate }) => {
+  const matchStage = {
+    "items.productId": productId,
+  };
+  if (startDate || endDate) {
+    matchStage.createdAt = {};
+    if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+    if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+  }
+
+  const purchases = await Purchase.aggregate([
+    { $unwind: "$items" },
+    { $match: matchStage },
+    {
+      $group: {
+        _id: "$items.productId",
+        name: { $first: "$items.name" },
+        unit: { $first: "$items.unit" },
+        totalQuantity: { $sum: "$items.quantity" },
+        totalWeight: { $sum: "$items.totalweight" },
+        totalBags: { $sum: "$items.bag" },
+      },
+    },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "productData",
+      },
+    },
+    {
+      $unwind: "$productData",
+    },
+    {
+      $project: {
+        name: 1,
+        unit: 1,
+        totalQuantity: 1,
+        totalWeight: 1,
+        totalBags: 1,
+        stock: "$productData.stock",
+      },
+    },
+  ]);
+
+  return purchases;
+};
+
+const getStockSummaryReport = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { startDate, endDate, type, download } = req.query; // Added `download`
+
+    let report;
+    if (type === "sales") {
+      report = await getProductSalesReport({ productId, startDate, endDate });
+    } else if (type === "purchases") {
+      report = await getProductPurchasesReport({
+        productId,
+        startDate,
+        endDate,
+      });
+    } else {
+      const salesReport = await getProductSalesReport({
+        productId,
+        startDate,
+        endDate,
+      });
+      const purchasesReport = await getProductPurchasesReport({
+        productId,
+        startDate,
+        endDate,
+      });
+
+      report = { sales: salesReport, purchases: purchasesReport };
+    }
+
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(
+      type === "sales"
+        ? "Sales Report"
+        : type === "purchases"
+        ? "Purchases Report"
+        : "Combined Report"
+    );
+
+    sheet.columns = [
+      { header: "SR No.", key: "srNo", width: 10 },
+      { header: "Product Name", key: "name", width: 25 },
+      { header: "Unit", key: "unit", width: 10 },
+      { header: "Current Stock", key: "stock", width: 15 },
+      { header: "Total Quantity", key: "totalQuantity", width: 20 },
+      { header: "Total Weight", key: "totalWeight", width: 20 },
+      { header: "Total Bags", key: "totalBags", width: 20 },
+    ];
+
+    let srNo = 1;
+    const data =
+      type === "sales" || type === "purchases"
+        ? report
+        : [...report.sales, ...report.purchases];
+
+    data.forEach((product) => {
+      sheet.addRow({ srNo: srNo++, ...product });
+    });
+
+    sheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell) => {
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "middle",
+        };
+        if (rowNumber === 1) {
+          cell.font = { bold: true };
+        }
+      });
+    });
+
+    const reportsDir = path.join("./reports");
+    if (!fs.existsSync(reportsDir))
+      fs.mkdirSync(reportsDir, { recursive: true });
+
+    const timestamp = Date.now();
+    const typeName = type
+      ? type.charAt(0).toUpperCase() + type.slice(1)
+      : "Combined";
+    const fileName = `${typeName}_Report_${timestamp}.xlsx`;
+    const filePath = path.join(reportsDir, fileName);
+
+    await workbook.xlsx.writeFile(filePath);
+
+    // If download flag is true, send the file directly
+    const isDownload = download?.toString().toLowerCase() === "true";
+    if (isDownload) {
+      return res.download(filePath, fileName, (err) => {
+        if (err) {
+          console.error("Download error:", err);
+          res.status(500).send("Could not download the report.");
+        } else {
+          fs.unlink(filePath, () => {}); // Optional: clean up after sending
+        }
+      });
+    }
+
+    // Else return JSON response
+    const formatDate = (d) => new Date(d).toLocaleDateString("en-GB");
+    const filterName =
+      startDate || endDate
+        ? `${typeName} Report - ${
+            startDate ? formatDate(startDate) : "..."
+          } to ${endDate ? formatDate(endDate) : "..."}`
+        : `${typeName} Report - All Time`;
+
+    res.status(200).json({
+      success: true,
+      downloadId: fileName,
+      filterName,
+      report,
+    });
+  } catch (err) {
+    console.error("Error generating stock report:", err);
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
+};
+
+const getProductReport = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { reportType } = req.query; // Get the report type (sale or purchase)
+
+    // Fetch the product details
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // Get Sales data for the product
+    const salesData = await Sales.aggregate([
+      { $unwind: "$items" },
+      { $match: { "items.productId": mongoose.Types.ObjectId(productId) } },
+      {
+        $group: {
+          _id: "$vendorId", // Group by vendorId for sales summary
+          totalWeight: { $sum: "$items.totalweight" },
+          totalBags: { $sum: "$items.bag" },
+          totalAmount: { $sum: "$items.total" },
+          totalPrice: { $sum: "$items.price" },
+          totalQuantity: { $sum: "$items.quantity" },
+          vendor: { $first: "$vendorId" }, // Include vendor details (this will be populated with vendor details from reference)
+        },
+      },
+      { $sort: { totalAmount: -1 } }, // Sort by totalAmount (descending) to show highest sales first
+    ]);
+
+    // Get Purchase data for the product
+    const purchaseData = await Purchase.aggregate([
+      { $unwind: "$items" },
+      { $match: { "items.productId": mongoose.Types.ObjectId(productId) } },
+      {
+        $group: {
+          _id: "$vendorId", // Group by vendorId for purchase summary
+          totalWeight: { $sum: "$items.totalweight" },
+          totalBags: { $sum: "$items.bag" },
+          totalAmount: { $sum: "$items.total" },
+          totalPrice: { $sum: "$items.price" },
+          totalQuantity: { $sum: "$items.quantity" },
+          vendor: { $first: "$vendorId" }, // Include vendor details (this will be populated with vendor details from reference)
+        },
+      },
+      { $sort: { totalAmount: -1 } }, // Sort by totalAmount (descending) to show highest purchases first
+    ]);
+
+    // Generate the response based on the reportType (sale or purchase)
+    let reportData = {};
+    let excelSheetName = "";
+
+    if (reportType === "sale") {
+      reportData = {
+        product: {
+          id: product._id,
+          name: product.name,
+          category: product.category,
+          description: product.description,
+          price: product.price,
+        },
+        salesData: salesData.map((sale) => ({
+          vendor: sale.vendor.name,
+          totalWeight: sale.totalWeight,
+          totalBags: sale.totalBags,
+          totalQuantity: sale.totalQuantity,
+          totalPrice: sale.totalPrice,
+          totalAmount: sale.totalAmount,
+        })),
+      };
+
+      excelSheetName = "Sales"; // Excel sheet name for sales
+    } else if (reportType === "purchase") {
+      reportData = {
+        product: {
+          id: product._id,
+          name: product.name,
+          category: product.category,
+          description: product.description,
+          price: product.price,
+        },
+        purchaseData: purchaseData.map((purchase) => ({
+          vendor: purchase.vendor.name,
+          totalWeight: purchase.totalWeight,
+          totalBags: purchase.totalBags,
+          totalQuantity: purchase.totalQuantity,
+          totalPrice: purchase.totalPrice,
+          totalAmount: purchase.totalAmount,
+        })),
+      };
+
+      excelSheetName = "Purchases"; // Excel sheet name for purchases
+    }
+
+    // Send JSON response with report data
+    res.status(200).json({
+      success: true,
+      message: "Report data fetched successfully",
+      data: reportData,
+      download: `/download-report/${productId}/${reportType}`, // Add download link for sale or purchase report
+    });
+
+    // After sending the JSON response, create the Excel file in the background
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(excelSheetName);
+
+    // Columns for Excel sheet
+    sheet.columns = [
+      { header: "Vendor", key: "vendor", width: 30 },
+      { header: "Total Weight", key: "totalWeight", width: 20 },
+      { header: "Total Bags", key: "totalBags", width: 20 },
+      { header: "Total Quantity", key: "totalQuantity", width: 20 },
+      { header: "Total Price", key: "totalPrice", width: 20 },
+      { header: "Total Amount", key: "totalAmount", width: 20 },
+    ];
+
+    // Populate Excel sheet
+    if (reportType === "sale") {
+      salesData.forEach((sale) => {
+        sheet.addRow({
+          vendor: sale.vendor.name,
+          totalWeight: sale.totalWeight,
+          totalBags: sale.totalBags,
+          totalQuantity: sale.totalQuantity,
+          totalPrice: sale.totalPrice,
+          totalAmount: sale.totalAmount,
+        });
+      });
+    } else if (reportType === "purchase") {
+      purchaseData.forEach((purchase) => {
+        sheet.addRow({
+          vendor: purchase.vendor.name,
+          totalWeight: purchase.totalWeight,
+          totalBags: purchase.totalBags,
+          totalQuantity: purchase.totalQuantity,
+          totalPrice: purchase.totalPrice,
+          totalAmount: purchase.totalAmount,
+        });
+      });
+    }
+
+    // Save Excel file
+    const filePath = path.join(
+      "./reports",
+      `Product_Report_${productId}_${reportType}.xlsx`
+    );
+    await workbook.xlsx.writeFile(filePath);
+  } catch (err) {
+    console.error("Error generating product report:", err);
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
+};
+
 export {
-  generateCustomerPurchaseReport,
   generateCustomerReport,
   generateSalesReport,
   getCustomerInvoiceReport,
   getOverallReport,
   getPartyWiseReport,
+  getProductReport,
   getProductWiseReport,
+  getStockSummaryReport,
 };
