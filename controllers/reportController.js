@@ -2,11 +2,13 @@ import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
 import Customer from "../models/Customer.js";
+import Vendor from '../models/Vendor.js'
 import Expense from "../models/Expense.js";
 import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
 import Sales from "../models/Sales.js";
 import Stock from "../models/Stock.js";
+import mongoose from "mongoose";
 
 const getOverallReport = async (req, res) => {
   try {
@@ -730,193 +732,194 @@ const getCustomerInvoiceReport = async (req, res) => {
   }
 };
 
-// sale
-const getProductSalesReport = async ({ productId, startDate, endDate }) => {
-  const matchStage = {
-    "items.productId": productId,
-  };
-  if (startDate || endDate) {
-    matchStage.createdAt = {};
-    if (startDate) matchStage.createdAt.$gte = new Date(startDate);
-    if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+
+const getProductSalesReport = async ({ startDate, endDate }) => {
+  try {
+    const matchQuery = {};
+    if (startDate && endDate) {
+      matchQuery["createdAt"] = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    } else if (startDate) {
+      matchQuery["createdAt"] = { $gte: new Date(startDate) };
+    } else if (endDate) {
+      matchQuery["createdAt"] = { $lte: new Date(endDate) };
+    }
+
+    const salesData = await Sales.aggregate([
+      { $match: matchQuery },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.productId",
+          productId: { $first: "$items.productId" },
+          name: { $first: "$items.name" },
+          unit: { $first: "$items.unit" },
+          totalQuantity: { $sum: "$items.quantity" },
+          totalWeight: { $sum: "$items.totalweight" },
+          totalBags: { $sum: "$items.bag" },
+          firstDate: { $min: "$createdAt" }, 
+          lastDate: { $max: "$createdAt" }, 
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "productInfo",
+        },
+      },
+      { $unwind: "$productInfo" },
+      {
+        $project: {
+          _id: 0,
+          productId: 1,
+          name: 1,
+          unit: 1,
+          totalQuantity: 1,
+          totalWeight: 1,
+          totalBags: 1,
+          stock: "$productInfo.stock",
+          firstDate: 1, 
+          lastDate: 1,
+        },
+      },
+    ]);
+
+    return salesData;
+  } catch (error) {
+    console.error("Error fetching product sales report:", error);
+    throw error;
   }
-
-  const sales = await Sales.aggregate([
-    { $unwind: "$items" },
-    { $match: matchStage },
-    {
-      $group: {
-        _id: "$items.productId",
-        name: { $first: "$items.name" },
-        unit: { $first: "$items.unit" },
-        totalQuantity: { $sum: "$items.quantity" },
-        totalWeight: { $sum: "$items.totalweight" },
-        totalBags: { $sum: "$items.bag" },
-      },
-    },
-    {
-      $lookup: {
-        from: "products",
-        localField: "_id",
-        foreignField: "_id",
-        as: "productData",
-      },
-    },
-    {
-      $unwind: "$productData",
-    },
-    {
-      $project: {
-        name: 1,
-        unit: 1,
-        totalQuantity: 1,
-        totalWeight: 1,
-        totalBags: 1,
-        stock: "$productData.stock",
-      },
-    },
-  ]);
-
-  return sales;
 };
 
-// purchase
-const getProductPurchasesReport = async ({ productId, startDate, endDate }) => {
-  const matchStage = {
-    "items.productId": productId,
-  };
-  if (startDate || endDate) {
-    matchStage.createdAt = {};
-    if (startDate) matchStage.createdAt.$gte = new Date(startDate);
-    if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+const getProductPurchasesReport = async ({ startDate, endDate }) => {
+  try {
+    const matchQuery = {};
+    if (startDate && endDate) {
+      matchQuery["purchaseDate"] = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    } else if (startDate) {
+      matchQuery["purchaseDate"] = { $gte: new Date(startDate) };
+    } else if (endDate) {
+      matchQuery["purchaseDate"] = { $lte: new Date(endDate) };
+    }
+
+    const purchasesData = await Purchase.aggregate([
+      { $match: matchQuery },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.productId",
+          productId: { $first: "$items.productId" },
+          name: { $first: "$items.name" },
+          unit: { $first: "$items.unit" },
+          totalQuantity: { $sum: "$items.quantity" },
+          totalWeight: { $sum: "$items.totalweight" },
+          totalBags: { $sum: "$items.bag" },
+          firstDate: { $min: "$purchaseDate" },
+          lastDate: { $max: "$purchaseDate" },
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "productInfo",
+        },
+      },
+      { $unwind: "$productInfo" },
+      {
+        $project: {
+          _id: 0,
+          productId:1,
+          name: 1,
+          unit: 1,
+          totalQuantity: 1,
+          totalWeight: 1,
+          totalBags: 1,
+          stock: "$productInfo.stock",
+          firstDate: 1, 
+          lastDate: 1,
+        },
+      },
+    ]);
+
+    return purchasesData;
+  } catch (error) {
+    console.error("Error fetching product purchases report:", error);
+    throw error;
   }
-
-  const purchases = await Purchase.aggregate([
-    { $unwind: "$items" },
-    { $match: matchStage },
-    {
-      $group: {
-        _id: "$items.productId",
-        name: { $first: "$items.name" },
-        unit: { $first: "$items.unit" },
-        totalQuantity: { $sum: "$items.quantity" },
-        totalWeight: { $sum: "$items.totalweight" },
-        totalBags: { $sum: "$items.bag" },
-      },
-    },
-    {
-      $lookup: {
-        from: "products",
-        localField: "_id",
-        foreignField: "_id",
-        as: "productData",
-      },
-    },
-    {
-      $unwind: "$productData",
-    },
-    {
-      $project: {
-        name: 1,
-        unit: 1,
-        totalQuantity: 1,
-        totalWeight: 1,
-        totalBags: 1,
-        stock: "$productData.stock",
-      },
-    },
-  ]);
-
-  return purchases;
 };
 
 const getStockSummaryReport = async (req, res) => {
   try {
-    const { productId } = req.params;
-    const { startDate, endDate, type, download } = req.query; // Added `download`
+    const { startDate, endDate, type, download } = req.query;
 
     let report;
-    if (type === "sales") {
-      report = await getProductSalesReport({ productId, startDate, endDate });
-    } else if (type === "purchases") {
-      report = await getProductPurchasesReport({
-        productId,
-        startDate,
-        endDate,
-      });
-    } else {
-      const salesReport = await getProductSalesReport({
-        productId,
-        startDate,
-        endDate,
-      });
-      const purchasesReport = await getProductPurchasesReport({
-        productId,
-        startDate,
-        endDate,
-      });
+    let reportType = "";
 
-      report = { sales: salesReport, purchases: purchasesReport };
+    if (type === "sales") {
+      report = await getProductSalesReport({ startDate, endDate });
+      reportType = "Sales";
+    } else if (type === "purchases") {
+      report = await getProductPurchasesReport({ startDate, endDate });
+      reportType = "Purchases";
+    } else {
+      return res.status(400).json({ message: "Invalid report type provided. Use 'sales' or 'purchases'." });
     }
 
-    const ExcelJS = (await import("exceljs")).default;
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(
-      type === "sales"
-        ? "Sales Report"
-        : type === "purchases"
-        ? "Purchases Report"
-        : "Combined Report"
-    );
-
-    sheet.columns = [
-      { header: "SR No.", key: "srNo", width: 10 },
-      { header: "Product Name", key: "name", width: 25 },
-      { header: "Unit", key: "unit", width: 10 },
-      { header: "Current Stock", key: "stock", width: 15 },
-      { header: "Total Quantity", key: "totalQuantity", width: 20 },
-      { header: "Total Weight", key: "totalWeight", width: 20 },
-      { header: "Total Bags", key: "totalBags", width: 20 },
-    ];
-
-    let srNo = 1;
-    const data =
-      type === "sales" || type === "purchases"
-        ? report
-        : [...report.sales, ...report.purchases];
-
-    data.forEach((product) => {
-      sheet.addRow({ srNo: srNo++, ...product });
-    });
-
-    sheet.eachRow((row, rowNumber) => {
-      row.eachCell((cell) => {
-        cell.alignment = {
-          horizontal: "center",
-          vertical: "middle",
-        };
-        if (rowNumber === 1) {
-          cell.font = { bold: true };
-        }
-      });
-    });
-
-    const reportsDir = path.join("./reports");
-    if (!fs.existsSync(reportsDir))
-      fs.mkdirSync(reportsDir, { recursive: true });
-
-    const timestamp = Date.now();
-    const typeName = type
-      ? type.charAt(0).toUpperCase() + type.slice(1)
-      : "Combined";
-    const fileName = `${typeName}_Report_${timestamp}.xlsx`;
-    const filePath = path.join(reportsDir, fileName);
-
-    await workbook.xlsx.writeFile(filePath);
-
-    // If download flag is true, send the file directly
     const isDownload = download?.toString().toLowerCase() === "true";
+
     if (isDownload) {
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet(`${reportType} Report`);
+
+      sheet.columns = [
+        { header: "SR No.", key: "srNo", width: 10 },
+        { header: "Product Name", key: "name", width: 25 },
+        { header: "Unit", key: "unit", width: 10 },
+        { header: "Current Stock", key: "stock", width: 15 },
+        { header: `Total ${reportType === 'Sales' ? 'Sales' : 'Purchases'} Quantity`, key: "totalQuantity", width: 20 },
+        { header: `Total ${reportType === 'Sales' ? 'Sales' : 'Purchases'} Weight`, key: "totalWeight", width: 20 },
+        { header: `Total ${reportType === 'Sales' ? 'Sales' : 'Purchases'} Bags`, key: "totalBags", width: 20 },
+      ];
+
+      let srNo = 1;
+      const data = report;
+
+      data.forEach((product) => {
+        sheet.addRow({ srNo: srNo++, ...product });
+      });
+
+      sheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+          };
+          if (rowNumber === 1) {
+            cell.font = { bold: true };
+          }
+        });
+      });
+
+      const reportsDir = path.join("./reports");
+      if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+
+      const timestamp = Date.now();
+      const typeName = reportType.replace(/ /g, "");
+      const fileName = `${typeName}_Report_${timestamp}.xlsx`;
+      const filePath = path.join(reportsDir, fileName);
+
+      await workbook.xlsx.writeFile(filePath);
+
       return res.download(filePath, fileName, (err) => {
         if (err) {
           console.error("Download error:", err);
@@ -925,23 +928,22 @@ const getStockSummaryReport = async (req, res) => {
           fs.unlink(filePath, () => {}); // Optional: clean up after sending
         }
       });
+    } else {
+      // Return JSON response
+      const formatDate = (d) => new Date(d).toLocaleDateString("en-GB");
+      const filterName =
+        startDate || endDate
+          ? `${reportType} Report - ${
+              startDate ? formatDate(startDate) : "..."
+            } to ${endDate ? formatDate(endDate) : "..."}`
+          : `${reportType} Report - All Time`;
+
+      return res.status(200).json({
+        success: true,
+        report,
+        filterName,
+      });
     }
-
-    // Else return JSON response
-    const formatDate = (d) => new Date(d).toLocaleDateString("en-GB");
-    const filterName =
-      startDate || endDate
-        ? `${typeName} Report - ${
-            startDate ? formatDate(startDate) : "..."
-          } to ${endDate ? formatDate(endDate) : "..."}`
-        : `${typeName} Report - All Time`;
-
-    res.status(200).json({
-      success: true,
-      downloadId: fileName,
-      filterName,
-      report,
-    });
   } catch (err) {
     console.error("Error generating stock report:", err);
     res.status(500).json({ message: "Server Error", error: err.message });
@@ -951,152 +953,119 @@ const getStockSummaryReport = async (req, res) => {
 const getProductReport = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { reportType } = req.query; // Get the report type (sale or purchase)
+    const { startDate, endDate, type, download } = req.query;
 
-    // Fetch the product details
-    const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
-    // Get Sales data for the product
-    const salesData = await Sales.aggregate([
-      { $unwind: "$items" },
-      { $match: { "items.productId": mongoose.Types.ObjectId(productId) } },
-      {
-        $group: {
-          _id: "$vendorId", // Group by vendorId for sales summary
-          totalWeight: { $sum: "$items.totalweight" },
-          totalBags: { $sum: "$items.bag" },
-          totalAmount: { $sum: "$items.total" },
-          totalPrice: { $sum: "$items.price" },
-          totalQuantity: { $sum: "$items.quantity" },
-          vendor: { $first: "$vendorId" }, // Include vendor details (this will be populated with vendor details from reference)
-        },
-      },
-      { $sort: { totalAmount: -1 } }, // Sort by totalAmount (descending) to show highest sales first
-    ]);
-
-    // Get Purchase data for the product
-    const purchaseData = await Purchase.aggregate([
-      { $unwind: "$items" },
-      { $match: { "items.productId": mongoose.Types.ObjectId(productId) } },
-      {
-        $group: {
-          _id: "$vendorId", // Group by vendorId for purchase summary
-          totalWeight: { $sum: "$items.totalweight" },
-          totalBags: { $sum: "$items.bag" },
-          totalAmount: { $sum: "$items.total" },
-          totalPrice: { $sum: "$items.price" },
-          totalQuantity: { $sum: "$items.quantity" },
-          vendor: { $first: "$vendorId" }, // Include vendor details (this will be populated with vendor details from reference)
-        },
-      },
-      { $sort: { totalAmount: -1 } }, // Sort by totalAmount (descending) to show highest purchases first
-    ]);
-
-    // Generate the response based on the reportType (sale or purchase)
-    let reportData = {};
-    let excelSheetName = "";
-
-    if (reportType === "sale") {
-      reportData = {
-        product: {
-          id: product._id,
-          name: product.name,
-          category: product.category,
-          description: product.description,
-          price: product.price,
-        },
-        salesData: salesData.map((sale) => ({
-          vendor: sale.vendor.name,
-          totalWeight: sale.totalWeight,
-          totalBags: sale.totalBags,
-          totalQuantity: sale.totalQuantity,
-          totalPrice: sale.totalPrice,
-          totalAmount: sale.totalAmount,
-        })),
-      };
-
-      excelSheetName = "Sales"; // Excel sheet name for sales
-    } else if (reportType === "purchase") {
-      reportData = {
-        product: {
-          id: product._id,
-          name: product.name,
-          category: product.category,
-          description: product.description,
-          price: product.price,
-        },
-        purchaseData: purchaseData.map((purchase) => ({
-          vendor: purchase.vendor.name,
-          totalWeight: purchase.totalWeight,
-          totalBags: purchase.totalBags,
-          totalQuantity: purchase.totalQuantity,
-          totalPrice: purchase.totalPrice,
-          totalAmount: purchase.totalAmount,
-        })),
-      };
-
-      excelSheetName = "Purchases"; // Excel sheet name for purchases
+    if (!["sales", "purchases"].includes(type)) {
+      return res.status(400).json({ error: "Invalid report type" });
     }
 
-    // Send JSON response with report data
-    res.status(200).json({
-      success: true,
-      message: "Report data fetched successfully",
-      data: reportData,
-      download: `/download-report/${productId}/${reportType}`, // Add download link for sale or purchase report
-    });
+    const isSales = type === "sales";
+    const Model = isSales ? Sales : Purchase;
+    const partyField = isSales ? "customerId" : "vendorId";
+    const partyModel = isSales ? Customer : Vendor;
+    const reportType = isSales ? "Sales" : "Purchases";
 
-    // After sending the JSON response, create the Excel file in the background
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(excelSheetName);
 
-    // Columns for Excel sheet
-    sheet.columns = [
-      { header: "Vendor", key: "vendor", width: 30 },
-      { header: "Total Weight", key: "totalWeight", width: 20 },
-      { header: "Total Bags", key: "totalBags", width: 20 },
-      { header: "Total Quantity", key: "totalQuantity", width: 20 },
-      { header: "Total Price", key: "totalPrice", width: 20 },
-      { header: "Total Amount", key: "totalAmount", width: 20 },
-    ];
-
-    // Populate Excel sheet
-    if (reportType === "sale") {
-      salesData.forEach((sale) => {
-        sheet.addRow({
-          vendor: sale.vendor.name,
-          totalWeight: sale.totalWeight,
-          totalBags: sale.totalBags,
-          totalQuantity: sale.totalQuantity,
-          totalPrice: sale.totalPrice,
-          totalAmount: sale.totalAmount,
-        });
-      });
-    } else if (reportType === "purchase") {
-      purchaseData.forEach((purchase) => {
-        sheet.addRow({
-          vendor: purchase.vendor.name,
-          totalWeight: purchase.totalWeight,
-          totalBags: purchase.totalBags,
-          totalQuantity: purchase.totalQuantity,
-          totalPrice: purchase.totalPrice,
-          totalAmount: purchase.totalAmount,
-        });
-      });
+    let dateFilter = {};
+    if (startDate || endDate) {
+      const dateField = isSales ? "createdAt" : "purchaseDate";
+      dateFilter[dateField] = {};
+      if (startDate) dateFilter[dateField].$gte = new Date(startDate);
+      if (endDate) dateFilter[dateField].$lte = new Date(endDate);
     }
 
-    // Save Excel file
-    const filePath = path.join(
-      "./reports",
-      `Product_Report_${productId}_${reportType}.xlsx`
-    );
-    await workbook.xlsx.writeFile(filePath);
+    const records = await Model.find(dateFilter)
+      .populate(partyField)
+      .lean();
+
+    const filtered = records
+      .map((doc) => {
+        const relevantItems = doc.items.filter(
+          (item) => item.productId.toString() === productId
+        );
+        if (relevantItems.length === 0) return null;
+
+        const party = doc[partyField];
+        const partyName = party?.businessInformation?.businessName || "Unknown";
+
+        const summary = relevantItems.reduce(
+          (acc, item) => {
+            acc.totalQuantity += item.quantity;
+            acc.totalBags += item.bag;
+            acc.totalPrice += item.price;
+            acc.totalAmount += item.total;
+            acc.totalWeightKg += convertToKg(item.totalweight, item.unit);
+            acc.totalWeight += item.totalweight; // Add totalWeight
+
+            return acc;
+          },
+          {
+            vendorName: partyName,
+            totalQuantity: 0,
+            totalBags: 0,
+            totalPrice: 0,
+            totalAmount: 0,
+            totalWeightKg: 0,
+            totalWeight: 0, // Initialize totalWeight
+          }
+        );
+
+        return summary;
+      })
+      .filter(Boolean);
+
+    if (download === "true") {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet(`${reportType} Report`); // Use reportType
+
+      // Define columns for the Excel sheet
+      const columns = [
+        { header: isSales ? "Customer" : "Vendor", key: "vendorName", width: 30 }, // Correct header
+        { header: "Total Weight (kg)", key: "totalWeightKg", width: 20 },
+        { header: "Total Weight", key: "totalWeight", width: 20 },
+        { header: "Total Bags", key: "totalBags", width: 20 },
+        { header: "Total Quantity", key: "totalQuantity", width: 20 },
+        { header: "Total Price", key: "totalPrice", width: 20 },
+        { header: "Total Amount", key: "totalAmount", width: 20 },
+      ];
+      sheet.columns = columns;
+
+      // Add data rows
+      filtered.forEach((entry) => {
+        sheet.addRow(entry);
+      });
+
+      // Make headers bold
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+      });
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename=${reportType}_report.xlsx`); // Use reportType
+      await workbook.xlsx.write(res);
+      res.end();
+    } else {
+      res.json({ type, data: filtered });
+    }
   } catch (err) {
-    console.error("Error generating product report:", err);
-    res.status(500).json({ message: "Server Error", error: err.message });
+    console.error("Error generating report:", err);
+    res.status(500).json({ error: "Something went wrong." });
   }
 };
+
+const convertToKg = (weight, unit) => {
+  switch (unit) {
+    case "GRAM":
+      return weight / 1000;
+    case "TON":
+      return weight * 1000;
+    case "KG":
+    default:
+      return weight;
+  }
+};
+
 
 export {
   generateCustomerReport,
