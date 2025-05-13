@@ -20,6 +20,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
+import { verifyToken } from "./middleware/authMiddleware.js";
 
 dotenv.config();
 const app = express();
@@ -33,7 +34,9 @@ app.get("/", (req, res) => {
   res.send('<h1 style="color:red">Great! You Are On The Right Path</h1>');
 });
 
-app.use("/api/admin", adminRoutes);
+app.use("/api/auth", adminRoutes);
+
+app.use(verifyToken)
 app.use("/api/product", productRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/purchases", purchaseRoutes);
