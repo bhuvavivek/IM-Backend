@@ -985,7 +985,6 @@ const getProductReport = async (req, res) => {
 
         const partyName = doc[partyField]?.businessInformation?.businessName || "Unknown";
 
-        // Calculate summary for each transaction's relevant items
         const summary = relevantItems.reduce(
           (acc, item) => {
             acc.totalQuantity += item.quantity;
@@ -1056,6 +1055,10 @@ const getProductReport = async (req, res) => {
       ];
       sheet.columns = columns;
 
+      let grandTotalPrice = 0;
+      let grandTotalAmount = 0;
+      let grandTotalWeightKg = 0;
+
       result.forEach((entry) => {
         sheet.addRow({
           vendorName: entry.vendorName,
@@ -1066,8 +1069,26 @@ const getProductReport = async (req, res) => {
           totalPrice: entry.totalPrice,
           totalAmount: entry.totalAmount,
         });
+        grandTotalPrice += entry.totalPrice;
+        grandTotalAmount += entry.totalAmount;
+        grandTotalWeightKg += entry.totalWeightKg;
       });
 
+      sheet.addRow({});
+      sheet.addRow({});
+
+    const grandTotalRow = sheet.addRow({        
+        vendorName: "Grand Totals",
+        totalWeightKg: grandTotalWeightKg,
+        totalPrice: grandTotalPrice,
+        totalAmount: grandTotalAmount,
+      });
+
+
+     grandTotalRow.eachCell((cell) => {
+        cell.font = { bold: true };
+      });
+      
       const headerRow = sheet.getRow(1);
       headerRow.eachCell((cell) => {
         cell.font = { bold: true };
