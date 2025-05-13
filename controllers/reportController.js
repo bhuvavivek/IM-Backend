@@ -962,9 +962,7 @@ const getProductReport = async (req, res) => {
     const isSales = type === "sales";
     const Model = isSales ? Sales : Purchase;
     const partyField = isSales ? "customerId" : "vendorId";
-    const partyModel = isSales ? Customer : Vendor;
     const reportType = isSales ? "Sales" : "Purchases";
-
 
     let dateFilter = {};
     if (startDate || endDate) {
@@ -985,9 +983,9 @@ const getProductReport = async (req, res) => {
         );
         if (relevantItems.length === 0) return null;
 
-        const party = doc[partyField];
-        const partyName = party?.businessInformation?.businessName || "Unknown";
+        const partyName = doc[partyField]?.businessInformation?.businessName || "Unknown";
 
+        // Calculate summary for each transaction's relevant items
         const summary = relevantItems.reduce(
           (acc, item) => {
             acc.totalQuantity += item.quantity;
@@ -995,32 +993,60 @@ const getProductReport = async (req, res) => {
             acc.totalPrice += item.price;
             acc.totalAmount += item.total;
             acc.totalWeightKg += convertToKg(item.totalweight, item.unit);
-            acc.totalWeight += item.totalweight; // Add totalWeight
-
+            acc.totalWeight += item.totalweight;
             return acc;
           },
           {
+            transactionId: doc._id, // Add transaction ID -  Important for identifying source
             vendorName: partyName,
             totalQuantity: 0,
             totalBags: 0,
             totalPrice: 0,
             totalAmount: 0,
             totalWeightKg: 0,
-            totalWeight: 0, // Initialize totalWeight
+            totalWeight: 0,
+            date: isSales ? doc.createdAt : doc.purchaseDate, //add date
           }
         );
-
         return summary;
       })
       .filter(Boolean);
 
+    // Aggregate by vendor
+    const aggregatedData = filtered.reduce((acc, item) => {
+      if (!acc[item.vendorName]) {
+        acc[item.vendorName] = {
+          vendorName: item.vendorName,
+          totalQuantity: 0,
+          totalBags: 0,
+          totalPrice: 0,
+          totalAmount: 0,
+          totalWeightKg: 0,
+          totalWeight: 0,
+          transactionIds: [], // Keep track of transaction IDs
+          dates: [],
+        };
+      }
+      acc[item.vendorName].totalQuantity += item.totalQuantity;
+      acc[item.vendorName].totalBags += item.totalBags;
+      acc[item.vendorName].totalPrice += item.totalPrice;
+      acc[item.vendorName].totalAmount += item.totalAmount;
+      acc[item.vendorName].totalWeightKg += item.totalWeightKg;
+      acc[item.vendorName].totalWeight += item.totalWeight;
+      acc[item.vendorName].transactionIds.push(item.transactionId); // Store the transaction ID
+      acc[item.vendorName].dates.push(item.date);
+      return acc;
+    }, {});
+
+    const result = Object.values(aggregatedData);
+
+
     if (download === "true") {
       const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet(`${reportType} Report`); // Use reportType
+      const sheet = workbook.addWorksheet(`${reportType} Report`);
 
-      // Define columns for the Excel sheet
       const columns = [
-        { header: isSales ? "Customer" : "Vendor", key: "vendorName", width: 30 }, // Correct header
+        { header: isSales ? "Customer" : "Vendor", key: "vendorName", width: 30 },
         { header: "Total Weight (kg)", key: "totalWeightKg", width: 20 },
         { header: "Total Weight", key: "totalWeight", width: 20 },
         { header: "Total Bags", key: "totalBags", width: 20 },
@@ -1030,23 +1056,29 @@ const getProductReport = async (req, res) => {
       ];
       sheet.columns = columns;
 
-      // Add data rows
-      filtered.forEach((entry) => {
-        sheet.addRow(entry);
+      result.forEach((entry) => {
+        sheet.addRow({
+          vendorName: entry.vendorName,
+          totalWeightKg: entry.totalWeightKg,
+          totalWeight: entry.totalWeight,
+          totalBags: entry.totalBags,
+          totalQuantity: entry.totalQuantity,
+          totalPrice: entry.totalPrice,
+          totalAmount: entry.totalAmount,
+        });
       });
 
-      // Make headers bold
       const headerRow = sheet.getRow(1);
       headerRow.eachCell((cell) => {
         cell.font = { bold: true };
       });
 
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename=${reportType}_report.xlsx`); // Use reportType
+      res.setHeader("Content-Disposition", `attachment; filename=${reportType}_report.xlsx`);
       await workbook.xlsx.write(res);
       res.end();
     } else {
-      res.json({ type, data: filtered });
+      res.json({ type, data: result });
     }
   } catch (err) {
     console.error("Error generating report:", err);
