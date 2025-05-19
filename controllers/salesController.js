@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Sales from "../models/Sales.js";
 import Stock from "../models/Stock.js";
+import { calculateBalanceAfter, getFinancialYear } from '../utils/common.js'
+import { BankLedger } from "../models/Bank-ledger.js";
 
 const determineStatus = (amountPaid, totalAmount, dueDate) => {
   if (amountPaid >= totalAmount) return "Paid";
@@ -18,6 +20,7 @@ const addSale = async (req, res) => {
       items,
       gstPercentage,
       dueDate,
+      createDate,
       isPaymentDone,
       paymentAmount,
       salesperson,
@@ -122,6 +125,7 @@ const addSale = async (req, res) => {
       cgst,
       sgst,
       totalAmount,
+      createdAt:createDate,
       dueDate,
       payments,
       amountPaid,
@@ -137,6 +141,48 @@ const addSale = async (req, res) => {
 
     await sale.save({ session });
     await sale.populate(["customerId", "items.productId"]);
+
+    let transactionType = 'credit'
+    const existingBankLedger = await BankLedger.findOne({
+      userId: customerId,
+      userType: "Customer",
+    }).session(session);
+
+    if (!existingBankLedger || existingBankLedger.Transaction.length === 0) 
+    {
+      transactionType = "opening";
+    }
+
+    const financialYear = getFinancialYear();
+
+    const newBankLedgerTransaction = {
+      type: transactionType,
+      amount: totalAmount, 
+      kasar: 0,
+      invoices: [
+        {
+          invoiceId: sale._id,
+          invoiceType: "Sales",
+          paidAmount: amountPaid,
+        },
+      ],
+      balanceAfter: await calculateBalanceAfter(customerId, "Customer", amountPaid, transactionType, session , totalAmount), // You need this
+      finanacialYear: financialYear,
+      date: createDate,
+    };
+
+    if (existingBankLedger) {
+      existingBankLedger.Transaction.push(newBankLedgerTransaction);
+      await existingBankLedger.save({ session });
+    } else {
+      const newBankLedger = new BankLedger({
+        userId: customerId,
+        userType: "Customer",
+        Transaction: [newBankLedgerTransaction],
+      });
+      await newBankLedger.save({ session });
+    }
+
     await session.commitTransaction();
     res.status(201).json(sale);
   } catch (error) {
@@ -341,7 +387,6 @@ const addPaymentToSale = async (req, res) => {
       sale.sgst = gstAmount / 2;
       sale.totalAmount = gstBase + gstAmount;
     }
-
     await sale.save();
     await sale.populate(["customerId", "items.productId"]);
 
@@ -577,6 +622,57 @@ const getSaleLastInvoiceNumber = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+
+const getSalesByCustomerId = async (req,res)=>{
+  try{
+    const {customerId} = req.params
+    if (!customerId) {
+      return res.status(400).json({ message: "Invalid customerId" });
+    }  
+  
+    const salesSummary = await Sales.aggregate([
+      {
+        $match:{
+          customerId:new mongoose.Types.ObjectId(customerId),
+          status:{$ne:'Paid'}
+        }
+      },
+      {
+        $facet:{
+          summary:[
+            {
+              $group:{
+                _id:null,
+                totalAmount:{$sum:'$totalAmount'},
+                totalpendingAmount:{$sum:'$pendingAmount'}
+              }
+            }
+          ],
+          invoiceDetails:[
+            {
+              $project:{
+                _id:1,
+                invoiceNumber:1,
+                totalAmount:1,
+                pendingAmount:1,
+              }
+            }
+          ]
+        }
+      }
+    ])
+
+    const modifiedSummary = salesSummary[0] || {};
+    modifiedSummary.summary = modifiedSummary.summary?.[0] || {};
+
+    res.status(200).json({transactionSummary:modifiedSummary})
+  }catch(error){
+    console.log(error)
+    req.status(500).json({message:"Server Error"})
+  }
+}
+
 export {
   addPaymentToSale,
   addSale,
@@ -586,4 +682,5 @@ export {
   getSaleLastInvoiceNumber,
   getSales,
   updateSale,
+  getSalesByCustomerId
 };

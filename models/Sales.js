@@ -70,6 +70,10 @@ const SalesSchema = new mongoose.Schema(
       enum: ["Pending", "Paid", "Overdue"],
       default: "Pending",
     },
+    kasar:{
+      type:Number,
+      default:0
+    }
   },
   { timestamps: true }
 );

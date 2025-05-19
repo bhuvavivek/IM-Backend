@@ -20,6 +20,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
+import bankRoutes from './routes/bank-ledger-Route.js'
 import { verifyToken } from "./middleware/authMiddleware.js";
 
 dotenv.config();
@@ -46,6 +47,8 @@ app.use("/api/invoices", InvoiceRoutes);
 app.use("/api/expense", expenseRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/bank", bankRoutes );
+
 
 const clearDB = async (req, res) => {
   try {

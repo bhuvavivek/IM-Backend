@@ -7,6 +7,7 @@ import {
   getPurchaseInvoiceById,
   getPurchaseLastInvoiceNumber,
   getPurchases,
+  getPurchasesByVendorId,
   updatePurchase,
 } from "../controllers/purchaseController.js";
 const router = express.Router();
@@ -18,5 +19,6 @@ router.post("/payment/:id", addPaymentToPurchase);
 router.put("/:id", updatePurchase);
 router.delete("/:id", deletePurchase);
 router.get("/invoice/:id", getPurchaseInvoiceById);
+router.get('/vendor/:vendorId',getPurchasesByVendorId)
 
 export default router;

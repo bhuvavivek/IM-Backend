@@ -4,9 +4,9 @@ import { v4 as uuidv4 } from "uuid";
 const PurchaseSchema = new mongoose.Schema(
   {
     invoiceNumber: {
-      type: String,
+      type: Number,
       unique: true,
-      default: () => `INV-${uuidv4().split("-")[0]}`,
+      required: true,
     }, // Unique purchase invoice
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -68,6 +68,10 @@ const PurchaseSchema = new mongoose.Schema(
       enum: ["Pending", "Paid", "Overdue"],
       default: "Pending",
     },
+     kasar:{
+      type:Number,
+      default:0
+    }
   },
   { timestamps: true }
 );

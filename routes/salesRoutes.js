@@ -8,6 +8,7 @@ import {
   getSaleLastInvoiceNumber,
   getSales,
   updateSale,
+  getSalesByCustomerId
 } from "../controllers/salesController.js";
 
 const router = express.Router();
@@ -19,4 +20,5 @@ router.get("/:id", getSale);
 router.delete("/:id", deleteSale);
 router.put("/:id", updateSale);
 router.get("/invoice/:id", getSaleInvoiceById);
+router.get('/customer/:customerId',getSalesByCustomerId);
 export default router;

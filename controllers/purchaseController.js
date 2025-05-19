@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
 import Stock from "../models/Stock.js";
+import { BankLedger } from "../models/Bank-ledger.js";
+import { calculateBalanceAfter, getFinancialYear } from "../utils/common.js";
 
 const determineStatus = (amountSent, totalAmount, dueDate) => {
   if (amountSent >= totalAmount) return "Paid";
@@ -114,6 +116,48 @@ const addPurchase = async (req, res) => {
 
     await purchase.save({ session });
     await purchase.populate(["vendorId", "items.productId"]); // Populating customer and product details
+    
+    let transactionType = 'credit'
+    const existingBankLedger = await BankLedger.findOne({
+      userId: vendorId,
+      userType: "Vendor",
+    }).session(session);
+
+    if (!existingBankLedger || existingBankLedger.Transaction.length === 0) 
+    {
+      transactionType = "opening";
+    }
+
+    const financialYear = getFinancialYear();
+
+    const newBankLedgerTransaction = {
+      type: transactionType,
+      amount: totalAmount, 
+      kasar: 0,
+      invoices: [
+        {
+          invoiceId: purchase._id,
+          invoiceType: "Purchase",
+          paidAmount: amountSent,
+        },
+      ],
+      balanceAfter: await calculateBalanceAfter(vendorId, "Vendor", amountSent, transactionType, session , totalAmount), // You need this
+      finanacialYear: financialYear,
+      date: new Date(),
+    };
+
+    if (existingBankLedger) {
+      existingBankLedger.Transaction.push(newBankLedgerTransaction);
+      await existingBankLedger.save({ session });
+    } else {
+      const newBankLedger = new BankLedger({
+        userId: vendorId,
+        userType: "Vendor",
+        Transaction: [newBankLedgerTransaction],
+      });
+      await newBankLedger.save({ session });
+    }
+    
     await session.commitTransaction();
     res.status(201).json(purchase);
   } catch (error) {
@@ -529,6 +573,57 @@ const getPurchaseLastInvoiceNumber = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+const getPurchasesByVendorId = async (req,res)=>{
+  try{
+    const {vendorId} = req.params
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "Invalid vendorId" });
+    }  
+    
+    const purchaesSummary = await Purchase.aggregate([
+      {
+        $match:{
+          vendorId:new mongoose.Types.ObjectId(vendorId),
+          status:{$ne:'Paid'}
+        }
+      },
+      {
+        $facet:{
+          summary:[
+            {
+              $group:{
+                _id:null,
+                totalAmount:{$sum:'$totalAmount'},
+                totalpendingAmount:{$sum:'$pendingAmount'}
+              }
+            }
+          ],
+          invoiceDetails:[
+            {
+              $project:{
+                _id:1,
+                invoiceNumber:1,
+                totalAmount:1,
+                pendingAmount:1,
+              }     
+            }
+          ]
+        }
+      }
+    ])
+
+    const modifiedSummary = salesSummary[0] || {};
+    modifiedSummary.summary = modifiedSummary.summary?.[0] || {};
+
+    res.status(200).json({transactionSummary:modifiedSummary})
+  }catch(error){
+    console.log(error)
+    req.status(500).json({message:"Server Error"})
+  }
+}
+
 export {
   addPaymentToPurchase,
   addPurchase,
@@ -538,4 +633,5 @@ export {
   getPurchaseLastInvoiceNumber,
   getPurchases,
   updatePurchase,
+  getPurchasesByVendorId
 };

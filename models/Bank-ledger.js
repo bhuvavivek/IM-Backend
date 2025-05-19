@@ -1,4 +1,4 @@
-import { Schema, Types } from "mongoose"
+import  { Schema, Types , model} from "mongoose"
 
 
 const TransactionSchema = new Schema({
@@ -16,7 +16,7 @@ const TransactionSchema = new Schema({
       invoiceType:{
         type:String,
         required:true,
-        enum:['Sales','Purchases']
+        enum:['Sales','Purchase']
       },
       paidAmount:{type:Number,required:true}
     }
@@ -45,5 +45,5 @@ const BankLedgerSchema = new Schema({
     Transaction:[TransactionSchema]
 }, { timestamps: true })
 
-export const BankLedger = mongoose.model("BankLedger", BankLedgerSchema);
+export const BankLedger = model("BankLedger", BankLedgerSchema);
 
