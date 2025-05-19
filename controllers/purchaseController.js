@@ -181,7 +181,11 @@ const updateStock = async (product, item, session) => {
         change: item.quantity,
         reason: "Purchase",
         changeType: "STOCK IN",
-        bags: item.bagsize,
+        bags:[{
+                  size: item.bagsize,
+                  quantity: item.quantity,
+                  weight: item.weight
+              }]
       });
 
       // Save the stock changes
@@ -620,7 +624,7 @@ const getPurchasesByVendorId = async (req,res)=>{
     res.status(200).json({transactionSummary:modifiedSummary})
   }catch(error){
     console.log(error)
-    req.status(500).json({message:"Server Error"})
+    res.status(500).json({message:"Server Error"})
   }
 }
 

@@ -4,8 +4,7 @@ import Stock from "../models/Stock.js";
 // Add stock for a product
 export const stockChange = async (req, res) => {
   try {
-    const { productId, lowStockThreshold, change, reason, changeType, bags } =
-      req.body;
+    const { productId, change, reason, changeType, bags } =  req.body;
 
     // Check if product exists
     const product = await Product.findById(productId);

@@ -199,6 +199,7 @@ const updateStock = async (product, item, session) => {
     const stock = await Stock.findOne({ productId: product._id }).session(
       session
     );
+    
     if (stock) {
       // Decrease the stock quantity
       stock.quantity -= item.quantity;
@@ -206,7 +207,11 @@ const updateStock = async (product, item, session) => {
         change: item.quantity,
         reason: "Sale",
         changeType: "STOCK OUT",
-        bags: item.bagsize,
+        bags:[{
+                  size: item.bagsize,
+                  quantity: item.quantity,
+                  weight: item.weight
+              }],
       });
 
       // Save the stock changes

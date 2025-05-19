@@ -61,19 +61,18 @@ const CreateCreditTransaction = async (req, res) => {
         remarks: "Bank Transaction",
       })
 
-      const invPaidAmount = Number((alreadyPaidAmount + Number(paidForThisInvoice)).toFixed(2));
-      const invKasarAmount = Number((Number(invoiceDoc.kasar || 0) + Number(kasarForThisInvoice)).toFixed(2));
-      const invTotalAmount = Number(invoiceDoc.totalAmount)
-      const invPendingAmount = Number((invTotalAmount - invPaidAmount).toFixed(2));
-      invoiceDoc.paidAmount = invPaidAmount;
-      invoiceDoc.kasar = invKasarAmount;
-      invoiceDoc.totalAmount = invTotalAmount;
-      invoiceDoc.pendingAmount = invPendingAmount;
+      const newAmountPaid = Number((alreadyPaidAmount + paidForThisInvoice).toFixed(2));
+      const newKasarAmount = Number((Number(invoiceDoc.kasar || 0) + kasarForThisInvoice).toFixed(2));
+      const newPendingAmount = Number((invoiceTotalAmount - newAmountPaid).toFixed(2));
 
-      if(invoiceDoc.totalAmount <= (invPaidAmount + invKasarAmount)){
-        invoiceDoc.status = 'Paid'
+      invoiceDoc.amountPaid = newAmountPaid;
+      invoiceDoc.kasar = newKasarAmount;
+      invoiceDoc.pendingAmount = newPendingAmount;
+
+      if (invoiceTotalAmount <= (newAmountPaid + newKasarAmount)) {
+        invoiceDoc.status = 'Paid';
+        invoiceDoc.isFullyPaid = true;
       }
-
 
       await invoiceDoc.save();
       updatedInvoices.push({
@@ -84,13 +83,18 @@ const CreateCreditTransaction = async (req, res) => {
     }
 
     let currentBalance = 0;
-    const latestLedger = await BankLedger.findOne({ userId, userType }).sort({
-      "Transaction.date": -1,
-    });
+    const ledgerWithLatestTransaction = await BankLedger.aggregate([
+      { $match: { userId, userType } },
+      { $unwind: "$Transaction" },
+      { $sort: { "Transaction.date": -1 } },
+      { $limit: 1 },
+      { $project: { balanceAfter: "$Transaction.balanceAfter" } }
+    ]);
 
 
-    if (latestLedger?.Transaction?.length > 0) {
-      currentBalance = latestLedger.Transaction[0].balanceAfter;
+
+    if (ledgerWithLatestTransaction?.length > 0) {
+      currentBalance = ledgerWithLatestTransaction[0].balanceAfter;
     }
 
     const balanceAfter = currentBalance + Number(amount);
