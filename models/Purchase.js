@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
 
 const PurchaseSchema = new mongoose.Schema(
   {
@@ -68,10 +67,10 @@ const PurchaseSchema = new mongoose.Schema(
       enum: ["Pending", "Paid", "Overdue"],
       default: "Pending",
     },
-     kasar:{
-      type:Number,
-      default:0
-    }
+    kasar: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

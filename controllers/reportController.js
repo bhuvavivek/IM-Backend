@@ -1,14 +1,13 @@
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
+import PDFDocument from "pdfkit";
 import Customer from "../models/Customer.js";
-import Vendor from '../models/Vendor.js'
 import Expense from "../models/Expense.js";
 import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
 import Sales from "../models/Sales.js";
 import Stock from "../models/Stock.js";
-import PDFDocument from 'pdfkit'
 
 const getOverallReport = async (req, res) => {
   try {
@@ -732,7 +731,6 @@ const getCustomerInvoiceReport = async (req, res) => {
   }
 };
 
-
 const getProductSalesReport = async ({ startDate, endDate }) => {
   try {
     const matchQuery = {};
@@ -759,8 +757,8 @@ const getProductSalesReport = async ({ startDate, endDate }) => {
           totalQuantity: { $sum: "$items.quantity" },
           totalWeight: { $sum: "$items.totalweight" },
           totalBags: { $sum: "$items.bag" },
-          firstDate: { $min: "$createdAt" }, 
-          lastDate: { $max: "$createdAt" }, 
+          firstDate: { $min: "$createdAt" },
+          lastDate: { $max: "$createdAt" },
         },
       },
       {
@@ -782,7 +780,7 @@ const getProductSalesReport = async ({ startDate, endDate }) => {
           totalWeight: 1,
           totalBags: 1,
           stock: "$productInfo.stock",
-          firstDate: 1, 
+          firstDate: 1,
           lastDate: 1,
         },
       },
@@ -837,14 +835,14 @@ const getProductPurchasesReport = async ({ startDate, endDate }) => {
       {
         $project: {
           _id: 0,
-          productId:1,
+          productId: 1,
           name: 1,
           unit: 1,
           totalQuantity: 1,
           totalWeight: 1,
           totalBags: 1,
           stock: "$productInfo.stock",
-          firstDate: 1, 
+          firstDate: 1,
           lastDate: 1,
         },
       },
@@ -871,7 +869,9 @@ const getStockSummaryReport = async (req, res) => {
       report = await getProductPurchasesReport({ startDate, endDate });
       reportType = "Purchases";
     } else {
-      return res.status(400).json({ message: "Invalid report type provided. Use 'sales' or 'purchases'." });
+      return res.status(400).json({
+        message: "Invalid report type provided. Use 'sales' or 'purchases'.",
+      });
     }
 
     const isDownload = download?.toString().toLowerCase() === "true";
@@ -886,9 +886,27 @@ const getStockSummaryReport = async (req, res) => {
         { header: "Product Name", key: "name", width: 25 },
         { header: "Unit", key: "unit", width: 10 },
         { header: "Current Stock", key: "stock", width: 15 },
-        { header: `Total ${reportType === 'Sales' ? 'Sales' : 'Purchases'} Quantity`, key: "totalQuantity", width: 20 },
-        { header: `Total ${reportType === 'Sales' ? 'Sales' : 'Purchases'} Weight`, key: "totalWeight", width: 20 },
-        { header: `Total ${reportType === 'Sales' ? 'Sales' : 'Purchases'} Bags`, key: "totalBags", width: 20 },
+        {
+          header: `Total ${
+            reportType === "Sales" ? "Sales" : "Purchases"
+          } Quantity`,
+          key: "totalQuantity",
+          width: 20,
+        },
+        {
+          header: `Total ${
+            reportType === "Sales" ? "Sales" : "Purchases"
+          } Weight`,
+          key: "totalWeight",
+          width: 20,
+        },
+        {
+          header: `Total ${
+            reportType === "Sales" ? "Sales" : "Purchases"
+          } Bags`,
+          key: "totalBags",
+          width: 20,
+        },
       ];
 
       let srNo = 1;
@@ -911,7 +929,8 @@ const getStockSummaryReport = async (req, res) => {
       });
 
       const reportsDir = path.join("./reports");
-      if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+      if (!fs.existsSync(reportsDir))
+        fs.mkdirSync(reportsDir, { recursive: true });
 
       const timestamp = Date.now();
       const typeName = reportType.replace(/ /g, "");
@@ -972,9 +991,7 @@ const getProductReport = async (req, res) => {
       if (endDate) dateFilter[dateField].$lte = new Date(endDate);
     }
 
-    const records = await Model.find(dateFilter)
-      .populate(partyField)
-      .lean();
+    const records = await Model.find(dateFilter).populate(partyField).lean();
 
     const filtered = records
       .map((doc) => {
@@ -983,7 +1000,8 @@ const getProductReport = async (req, res) => {
         );
         if (relevantItems.length === 0) return null;
 
-        const partyName = doc[partyField]?.businessInformation?.businessName || "Unknown";
+        const partyName =
+          doc[partyField]?.businessInformation?.businessName || "Unknown";
 
         const summary = relevantItems.reduce(
           (acc, item) => {
@@ -1039,13 +1057,16 @@ const getProductReport = async (req, res) => {
 
     const result = Object.values(aggregatedData);
 
-
     if (download === "true") {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet(`${reportType} Report`);
 
       const columns = [
-        { header: isSales ? "Customer" : "Vendor", key: "vendorName", width: 30 },
+        {
+          header: isSales ? "Customer" : "Vendor",
+          key: "vendorName",
+          width: 30,
+        },
         { header: "Total Weight (kg)", key: "totalWeightKg", width: 20 },
         { header: "Total Weight", key: "totalWeight", width: 20 },
         { header: "Total Bags", key: "totalBags", width: 20 },
@@ -1077,25 +1098,30 @@ const getProductReport = async (req, res) => {
       sheet.addRow({});
       sheet.addRow({});
 
-    const grandTotalRow = sheet.addRow({        
+      const grandTotalRow = sheet.addRow({
         vendorName: "Grand Totals",
         totalWeightKg: grandTotalWeightKg,
         totalPrice: grandTotalPrice,
         totalAmount: grandTotalAmount,
       });
 
-
-     grandTotalRow.eachCell((cell) => {
+      grandTotalRow.eachCell((cell) => {
         cell.font = { bold: true };
       });
-      
+
       const headerRow = sheet.getRow(1);
       headerRow.eachCell((cell) => {
         cell.font = { bold: true };
       });
 
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename=${reportType}_report.xlsx`);
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${reportType}_report.xlsx`
+      );
       await workbook.xlsx.write(res);
       res.end();
     } else {
@@ -1121,48 +1147,76 @@ const convertToKg = (weight, unit) => {
 
 const generatePLReport = async (req, res) => {
   try {
-    const { startDate, endDate, format = 'json' } = req.query;
+    const { startDate, endDate, format = "json" } = req.query;
 
     let start;
     let end;
 
     if (!startDate || !endDate) {
       // Fetch the earliest and latest dates from your data
-      const firstSale = await Sales.findOne({}, { createdAt: 1 }, { sort: { createdAt: 1 } });
-      const lastSale = await Sales.findOne({}, { createdAt: 1 }, { sort: { createdAt: -1 } });
+      const firstSale = await Sales.findOne(
+        {},
+        { createdAt: 1 },
+        { sort: { createdAt: 1 } }
+      );
+      const lastSale = await Sales.findOne(
+        {},
+        { createdAt: 1 },
+        { sort: { createdAt: -1 } }
+      );
 
-      const firstPurchase = await Purchase.findOne({}, { purchaseDate: 1 }, { sort: { purchaseDate: 1 } });
-      const lastPurchase = await Purchase.findOne({}, { purchaseDate: 1 }, { sort: { purchaseDate: -1 } });
+      const firstPurchase = await Purchase.findOne(
+        {},
+        { purchaseDate: 1 },
+        { sort: { purchaseDate: 1 } }
+      );
+      const lastPurchase = await Purchase.findOne(
+        {},
+        { purchaseDate: 1 },
+        { sort: { purchaseDate: -1 } }
+      );
 
-      const firstExpense = await Expense.findOne({}, { date: 1 }, { sort: { date: 1 } });
-      const lastExpense = await Expense.findOne({}, { date: 1 }, { sort: { date: -1 } });
+      const firstExpense = await Expense.findOne(
+        {},
+        { date: 1 },
+        { sort: { date: 1 } }
+      );
+      const lastExpense = await Expense.findOne(
+        {},
+        { date: 1 },
+        { sort: { date: -1 } }
+      );
 
       // Determine the overall start and end dates
-      start = new Date(Math.min(
-        firstSale?.createdAt?.getTime() || Date.now(),
-        firstPurchase?.purchaseDate?.getTime() || Date.now(),
-        firstExpense?.date?.getTime() || Date.now()
-      ));
+      start = new Date(
+        Math.min(
+          firstSale?.createdAt?.getTime() || Date.now(),
+          firstPurchase?.purchaseDate?.getTime() || Date.now(),
+          firstExpense?.date?.getTime() || Date.now()
+        )
+      );
 
-      end = new Date(Math.max(
-        lastSale?.createdAt?.getTime() || Date.now(),
-        lastPurchase?.purchaseDate?.getTime() || Date.now(),
-        lastExpense?.date?.getTime() || Date.now()
-      ));
+      end = new Date(
+        Math.max(
+          lastSale?.createdAt?.getTime() || Date.now(),
+          lastPurchase?.purchaseDate?.getTime() || Date.now(),
+          lastExpense?.date?.getTime() || Date.now()
+        )
+      );
 
-       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({
           message: "Could not determine start and end dates from the data.",
         });
       }
-
     } else {
       start = new Date(startDate);
       end = new Date(endDate);
 
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({
-          message: "Invalid date format. Please use a valid date string (e.g., YYYY-MM-DD).",
+          message:
+            "Invalid date format. Please use a valid date string (e.g., YYYY-MM-DD).",
         });
       }
     }
@@ -1215,70 +1269,164 @@ const generatePLReport = async (req, res) => {
     };
 
     // --- Handle PDF Generation if format is 'pdf' ---
-    if (format === 'pdf') {
+    if (format === "pdf") {
       const doc = new PDFDocument({
-        size: 'A4',
+        size: "A4",
         margin: 30,
       });
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=pnl-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=pnl-report-${
+          new Date().toISOString().split("T")[0]
+        }.pdf`
+      );
 
       doc.pipe(res);
 
       const companyName = "Ramdev Agro";
-      const companyAddress = "SURVEY NO 20, PAIKI PLOT NO 1, KHATA NO 736, AT- GALA,TA- DHRANGANDHRA, DIST- SURENDRANAGAR ,363310";
-      const companyContact = "Phone: +91 94289 51404 | Email: Revabesanind@gmail.com";
+      const companyAddress =
+        "SURVEY NO 20, PAIKI PLOT NO 1, KHATA NO 736, AT- GALA,TA- DHRANGANDHRA, DIST- SURENDRANAGAR ,363310";
+      const companyContact =
+        "Phone: +91 94289 51404 | Email: Revabesanind@gmail.com";
       const companyGst = "GST Number: 24ABBFR5130N1Z6x";
 
-      doc.fontSize(15).font('Helvetica-Bold').text(companyName, { align: 'center' });
+      doc
+        .fontSize(15)
+        .font("Helvetica-Bold")
+        .text(companyName, { align: "center" });
       doc.moveDown(0.2);
-      doc.fontSize(10).font('Helvetica').text(companyAddress, { align: 'center' });
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text(companyAddress, { align: "center" });
       doc.moveDown(0.2);
-      doc.text(companyContact, { align: 'center' });
+      doc.text(companyContact, { align: "center" });
       doc.moveDown(0.2);
-      doc.text(companyGst, { align: 'center' });
-      doc.moveTo(30, doc.y + 10).lineTo(doc.page.width - 30, doc.y + 10).stroke();
+      doc.text(companyGst, { align: "center" });
+      doc
+        .moveTo(30, doc.y + 10)
+        .lineTo(doc.page.width - 30, doc.y + 10)
+        .stroke();
       doc.moveDown(1.5);
 
-      doc.fontSize(18).font('Helvetica-Bold').text('PROFIT & LOSS STATEMENT', { align: 'center' });
+      doc
+        .fontSize(18)
+        .font("Helvetica-Bold")
+        .text("PROFIT & LOSS STATEMENT", { align: "center" });
       doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`Period: ${reportData.period}`, { align: 'center' });
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`Period: ${reportData.period}`, { align: "center" });
       doc.moveDown(1);
 
       const textIndent = 50;
       const valueIndent = 450;
 
-      doc.fontSize(12).font('Helvetica-Bold').text('Revenue from Operations:', textIndent);
-      doc.fontSize(12).font('Helvetica').text(`INR ${String(reportData.salesRevenue)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Revenue from Operations:", textIndent);
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(
+          `INR ${String(reportData.salesRevenue)}`,
+          valueIndent,
+          doc.y - doc.currentLineHeight(),
+          { align: "right" }
+        );
       doc.moveDown(0.5);
 
-      doc.fontSize(12).font('Helvetica-Bold').text('Less: Cost of Goods Sold:', textIndent);
-      doc.fontSize(12).font('Helvetica').text(`INR ${reportData.costOfGoodsSold}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Less: Cost of Goods Sold:", textIndent);
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(
+          `INR ${reportData.costOfGoodsSold}`,
+          valueIndent,
+          doc.y - doc.currentLineHeight(),
+          { align: "right" }
+        );
       doc.moveDown(0.5);
-      doc.moveTo(textIndent, doc.y).lineTo(doc.page.width - textIndent, doc.y).stroke();
+      doc
+        .moveTo(textIndent, doc.y)
+        .lineTo(doc.page.width - textIndent, doc.y)
+        .stroke();
       doc.moveDown(0.2);
 
-      doc.fontSize(12).font('Helvetica-Bold').text('Gross Profit:', textIndent);
-      doc.fontSize(12).font('Helvetica-Bold').text(`INR ${reportData.grossProfit}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.fontSize(12).font("Helvetica-Bold").text("Gross Profit:", textIndent);
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text(
+          `INR ${reportData.grossProfit}`,
+          valueIndent,
+          doc.y - doc.currentLineHeight(),
+          { align: "right" }
+        );
       doc.moveDown(1);
 
-      doc.fontSize(12).font('Helvetica-Bold').text('Less: Operating Expenses:', textIndent);
-      expenses.forEach(exp => {
-        doc.fontSize(10).font('Helvetica').text(`${exp.name}:`, textIndent + 20);
-        doc.text(`INR ${exp.total.toFixed(2)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Less: Operating Expenses:", textIndent);
+      expenses.forEach((exp) => {
+        doc
+          .fontSize(10)
+          .font("Helvetica")
+          .text(`${exp.name}:`, textIndent + 20);
+        doc.text(
+          `INR ${exp.total.toFixed(2)}`,
+          valueIndent,
+          doc.y - doc.currentLineHeight(),
+          { align: "right" }
+        );
         doc.moveDown(0.2);
       });
-      doc.moveTo(textIndent, doc.y).lineTo(doc.page.width - textIndent, doc.y).stroke();
+      doc
+        .moveTo(textIndent, doc.y)
+        .lineTo(doc.page.width - textIndent, doc.y)
+        .stroke();
       doc.moveDown(0.2);
-      doc.fontSize(12).font('Helvetica-Bold').text('Total Operating Expenses:', textIndent);
-      doc.fontSize(12).font('Helvetica-Bold').text(`INR ${reportData.operatingExpenses}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Total Operating Expenses:", textIndent);
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text(
+          `INR ${reportData.operatingExpenses}`,
+          valueIndent,
+          doc.y - doc.currentLineHeight(),
+          { align: "right" }
+        );
       doc.moveDown(1);
 
-      doc.fontSize(14).font('Helvetica-Bold').text('Net Profit / (Loss):', textIndent);
-      doc.fontSize(14).font('Helvetica-Bold').text(`INR ${reportData.netProfitLoss}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Net Profit / (Loss):", textIndent);
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text(
+          `INR ${reportData.netProfitLoss}`,
+          valueIndent,
+          doc.y - doc.currentLineHeight(),
+          { align: "right" }
+        );
       doc.moveDown(0.5);
-      doc.fontSize(10).font('Helvetica').text(`Status: ${reportData.status}`, textIndent);
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text(`Status: ${reportData.status}`, textIndent);
 
       doc.end();
     } else {
@@ -1296,9 +1444,150 @@ const generatePLReport = async (req, res) => {
   }
 };
 
+const generatePurchaseReport = async (req, res) => {
+  try {
+    const { startDate, endDate, download } = req.query;
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+    const matchStage = startDate || endDate ? { createdAt: dateFilter } : {};
+
+    // Aggregate purchase data
+    const purchaseSummary = await Purchase.aggregate([
+      { $match: matchStage },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$vendorId",
+          totalPurchases: { $sum: "$totalAmount" },
+          totalPaid: { $sum: "$amountPaid" },
+          totalPending: { $sum: "$pendingAmount" },
+          invoiceCount: { $addToSet: "$invoiceNumber" },
+          totalGST: { $sum: "$gstAmount" },
+          totalBags: { $sum: "$items.bag" },
+          firstInvoiceDate: { $min: "$createdAt" },
+          lastInvoiceDate: { $max: "$createdAt" },
+        },
+      },
+      {
+        $addFields: {
+          invoiceCount: { $size: "$invoiceCount" },
+        },
+      },
+      {
+        $lookup: {
+          from: "vendors",
+          localField: "_id",
+          foreignField: "_id",
+          as: "vendor",
+        },
+      },
+      { $unwind: "$vendor" },
+      {
+        $project: {
+          vendorId: "$_id",
+          businessName: "$vendor.businessInformation.businessName",
+          totalPurchases: 1,
+          totalPaid: 1,
+          totalPending: 1,
+          invoiceCount: 1,
+          totalGST: 1,
+          totalBags: 1,
+          firstInvoiceDate: 1,
+          lastInvoiceDate: 1,
+        },
+      },
+    ]);
+
+    if (!purchaseSummary.length) {
+      return res
+        .status(200)
+        .json({ message: "No purchases found in date range.", summary: [] });
+    }
+
+    // Download Excel if requested
+    if (download === "true") {
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook({
+        useStyles: true,
+        useSharedStrings: true,
+      });
+      const sheet = workbook.addWorksheet("Vendor Purchase Summary");
+
+      // Define columns
+      sheet.columns = [
+        { header: "SR No.", key: "srNo", width: 10 },
+        { header: "Business Name", key: "businessName", width: 30 },
+        { header: "Total Purchase (₹)", key: "totalPurchases", width: 20 },
+        { header: "Amount Paid (₹)", key: "totalPaid", width: 20 },
+        { header: "Pending Amount (₹)", key: "totalPending", width: 20 },
+        { header: "Invoices", key: "invoiceCount", width: 10 },
+        { header: "GST Paid (₹)", key: "totalGST", width: 20 },
+        { header: "Total Bags", key: "totalBags", width: 15 },
+      ];
+
+      // Fill data
+      purchaseSummary.forEach((entry, index) => {
+        sheet.addRow({
+          srNo: index + 1,
+          businessName: entry.businessName,
+          totalPurchases: parseFloat(entry.totalPurchases.toFixed(2)),
+          totalPaid: parseFloat(entry.totalPaid.toFixed(2)),
+          totalPending: parseFloat(entry.totalPending.toFixed(2)),
+          invoiceCount: entry.invoiceCount,
+          totalGST: parseFloat(entry.totalGST.toFixed(2)),
+          totalBags: entry.totalBags,
+        });
+      });
+
+      // Style rows
+      sheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+          if (rowNumber === 1) cell.font = { bold: true };
+        });
+      });
+
+      const reportsDir = path.join(process.cwd(), "reports");
+      if (!fs.existsSync(reportsDir))
+        fs.mkdirSync(reportsDir, { recursive: true });
+
+      const formatDate = (date) =>
+        `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+      const startStr = startDate ? formatDate(new Date(startDate)) : "Start";
+      const endStr = endDate ? formatDate(new Date(endDate)) : "End";
+
+      const fileName = `Purchase_Summary_${startStr}_to_${endStr}.xlsx`;
+      const filePath = path.join(reportsDir, fileName);
+
+      await workbook.xlsx.writeFile(filePath);
+
+      return res.download(filePath, fileName, (err) => {
+        if (err) {
+          console.error("Download error:", err);
+          res.status(500).send("Could not download the report.");
+        } else {
+          fs.unlink(filePath, () => {}); // cleanup
+        }
+      });
+    }
+
+    return res.json({ success: true, summary: purchaseSummary });
+  } catch (error) {
+    console.error("Purchase summary error:", error);
+    res.status(500).json({
+      message: "Error generating purchase summary report",
+      error: error.message,
+    });
+  }
+};
 
 export {
   generateCustomerReport,
+  generatePLReport,
+  generatePurchaseReport,
   generateSalesReport,
   getCustomerInvoiceReport,
   getOverallReport,
@@ -1306,5 +1595,4 @@ export {
   getProductReport,
   getProductWiseReport,
   getStockSummaryReport,
-  generatePLReport
 };
