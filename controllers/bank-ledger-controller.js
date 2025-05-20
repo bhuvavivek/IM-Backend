@@ -200,7 +200,7 @@ const generateLedgerPDF = async (req, res) => {
     // Create a new PDF document
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 20 // Reduced margin for more content
+      margin: 15 // Further reduced margin for more content space
     });
 
     // Set response headers
@@ -225,7 +225,7 @@ const generateLedgerPDF = async (req, res) => {
     doc.text(companyGst, { align: 'center' });
 
     // Line separator
-    doc.moveTo(20, doc.y + 10).lineTo(575, doc.y + 10).stroke(); // Adjusted line length
+    doc.moveTo(15, doc.y + 10).lineTo(580, doc.y + 10).stroke(); // Adjusted line length to match reduced margins
     doc.moveDown(1.5);
 
     // Ledger Title
@@ -258,7 +258,7 @@ const generateLedgerPDF = async (req, res) => {
 
     // Banking Details if available
     if (userDetails.bankInfo && userDetails.bankInfo.bankName) {
-      detailY +=15
+      detailY +=5
       doc.text(`Bank: ${userDetails.bankInfo.bankName}`, bankDetailsX, detailY);
       detailY += 15;
       doc.text(`Account: ${userDetails.bankInfo.accountNumber}`, bankDetailsX, detailY);
@@ -280,13 +280,13 @@ const generateLedgerPDF = async (req, res) => {
 
     // Table Headers
     const startY = doc.y;
-    const rowHeight = 25; // Increased row height for spacing
-    // Adjusted column widths for A4 to accommodate the new column
-    const colWidths = [80, 80, 80, 80, 100, 100]; 
-    const cols = ['Date', 'Debit', 'Credit', 'Balance', 'Kasar', 'Remarks']; // Changed 'Type' to 'Remarks'
+    const rowHeight = 30; // Increased row height for better spacing and readability
+    // Adjusted column widths for A4 - removed Kasar and Remarks columns and fit to full page width
+    const colWidths = [140, 140, 140, 140]; // Wider columns to fit full page
+    const cols = ['Date', 'Debit', 'Credit', 'Balance']; // Removed 'Kasar' and 'Remarks' columns
 
     // Draw table header
-    doc.fontSize(8).font('Helvetica-Bold');
+    doc.fontSize(10).font('Helvetica-Bold'); // Increased font size
     let currentX = 20;
     cols.forEach((col, i) => {
       doc.rect(currentX, startY, colWidths[i], rowHeight).stroke();
@@ -296,16 +296,14 @@ const generateLedgerPDF = async (req, res) => {
 
     // Opening Balance Row
     let currentY = startY + rowHeight;
-    doc.fontSize(8).font('Helvetica');
+    doc.fontSize(10).font('Helvetica-Bold'); // Made opening balance row bold and increased font size
     currentX = 20;
 
     const openingRowData = [
-      '',
+      'Opening Balance',
       openingBalance < 0 ? Math.abs(openingBalance).toFixed(2) : '',
       openingBalance > 0 ? openingBalance.toFixed(2) : '',
-      openingBalance.toFixed(2),
-      '',
-      'Opening Balance' // Show 'Opening Balance' here
+      openingBalance.toFixed(2)
     ];
 
     openingRowData.forEach((data, i) => {
@@ -328,8 +326,8 @@ const generateLedgerPDF = async (req, res) => {
         doc.addPage({ size: 'A4', margin: 20 });
         currentY = 20;
 
-        // Redraw header on new page
-        doc.fontSize(8).font('Helvetica-Bold');
+      // Redraw header on new page
+        doc.fontSize(10).font('Helvetica-Bold'); // Increased font size
         let headerX = 20;
         cols.forEach((col, i) => {
           doc.rect(headerX, currentY, colWidths[i], rowHeight).stroke();
@@ -343,12 +341,10 @@ const generateLedgerPDF = async (req, res) => {
         new Date(transaction.date).toLocaleDateString(),
         debit,
         credit,
-        runningBalance.toFixed(2),
-        transaction.kasar ? transaction.kasar.toFixed(2) : '',
-        '' // No need to display type for regular transactions here
+        runningBalance.toFixed(2)
       ];
 
-      doc.fontSize(8).font('Helvetica');
+      doc.fontSize(10).font('Helvetica'); // Increased font size for normal rows
       rowData.forEach((data, i) => {
         doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
         const align = 'center';
@@ -366,15 +362,13 @@ const generateLedgerPDF = async (req, res) => {
     }
     const closingBalance = transactions.length > 0 ? transactions[transactions.length - 1].balanceAfter : openingBalance;
     const closingRowData = [
-      '',
+      'Closing Balance',
       closingBalance < 0 ? Math.abs(closingBalance).toFixed(2) : '',
       closingBalance > 0 ? closingBalance.toFixed(2) : '',
-      closingBalance.toFixed(2),
-      '',
-      'Closing Balance' // Show 'Closing Balance' here
+      closingBalance.toFixed(2)
     ];
 
-    doc.fontSize(8).font('Helvetica-Bold');
+    doc.fontSize(10).font('Helvetica-Bold'); // Increased font size for closing balance
     closingRowData.forEach((data, i) => {
       doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
       doc.text(data, currentX + 3, currentY + 8, { width: colWidths[i] - 6, align: 'center' }); // Increased vertical padding
@@ -389,6 +383,7 @@ const generateLedgerPDF = async (req, res) => {
     res.status(500).json({ message: 'Error generating PDF', error: error.message });
   }
 };
+
 
 
 export { CreateCreditTransaction , generateLedgerPDF};

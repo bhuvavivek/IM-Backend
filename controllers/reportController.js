@@ -1250,33 +1250,33 @@ const generatePLReport = async (req, res) => {
       const valueIndent = 450;
 
       doc.fontSize(12).font('Helvetica-Bold').text('Revenue from Operations:', textIndent);
-      doc.fontSize(12).font('Helvetica').text(`₹ ${String(reportData.salesRevenue)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.fontSize(12).font('Helvetica').text(`INR ${String(reportData.salesRevenue)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
       doc.moveDown(0.5);
 
       doc.fontSize(12).font('Helvetica-Bold').text('Less: Cost of Goods Sold:', textIndent);
-      doc.fontSize(12).font('Helvetica').text(`₹ ${reportData.costOfGoodsSold}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.fontSize(12).font('Helvetica').text(`INR ${reportData.costOfGoodsSold}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
       doc.moveDown(0.5);
       doc.moveTo(textIndent, doc.y).lineTo(doc.page.width - textIndent, doc.y).stroke();
       doc.moveDown(0.2);
 
       doc.fontSize(12).font('Helvetica-Bold').text('Gross Profit:', textIndent);
-      doc.fontSize(12).font('Helvetica-Bold').text(`₹ ${reportData.grossProfit}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.fontSize(12).font('Helvetica-Bold').text(`INR ${reportData.grossProfit}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
       doc.moveDown(1);
 
       doc.fontSize(12).font('Helvetica-Bold').text('Less: Operating Expenses:', textIndent);
       expenses.forEach(exp => {
         doc.fontSize(10).font('Helvetica').text(`${exp.name}:`, textIndent + 20);
-        doc.text(`₹ ${exp.total.toFixed(2)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+        doc.text(`INR ${exp.total.toFixed(2)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
         doc.moveDown(0.2);
       });
       doc.moveTo(textIndent, doc.y).lineTo(doc.page.width - textIndent, doc.y).stroke();
       doc.moveDown(0.2);
       doc.fontSize(12).font('Helvetica-Bold').text('Total Operating Expenses:', textIndent);
-      doc.fontSize(12).font('Helvetica-Bold').text(`₹ ${reportData.operatingExpenses}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.fontSize(12).font('Helvetica-Bold').text(`INR ${reportData.operatingExpenses}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
       doc.moveDown(1);
 
       doc.fontSize(14).font('Helvetica-Bold').text('Net Profit / (Loss):', textIndent);
-      doc.fontSize(14).font('Helvetica-Bold').text(`₹ ${reportData.netProfitLoss}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.fontSize(14).font('Helvetica-Bold').text(`INR ${reportData.netProfitLoss}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
       doc.moveDown(0.5);
       doc.fontSize(10).font('Helvetica').text(`Status: ${reportData.status}`, textIndent);
 
