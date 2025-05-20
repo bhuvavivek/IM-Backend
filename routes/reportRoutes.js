@@ -4,6 +4,7 @@ import {
   generatePLReport,
   generatePurchaseReport,
   generateSalesReport,
+  generateVendorReport,
   getCustomerInvoiceReport,
   getOverallReport,
   getProductReport,
@@ -17,6 +18,7 @@ router.get("/overall", getOverallReport);
 router.get("/sales-summary", generateSalesReport);
 router.get("/purchase-summary", generatePurchaseReport);
 router.get("/sale/customer/:customerId", generateCustomerReport);
+router.get("/purchase/vendor/:vendorId", generateVendorReport);
 router.get("/customer-invoice/:customerId", getCustomerInvoiceReport);
 router.get("/stock-summary", getStockSummaryReport);
 router.get("/product/:productId", getProductReport);

@@ -8,6 +8,7 @@ import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
 import Sales from "../models/Sales.js";
 import Stock from "../models/Stock.js";
+import Vendor from "../models/Vendor.js";
 
 const getOverallReport = async (req, res) => {
   try {
@@ -552,6 +553,156 @@ const generateCustomerReport = async (req, res) => {
     });
   } catch (err) {
     console.error("Error generating sales report:", err);
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
+};
+
+// Vendor Purchase Report
+const generateVendorReport = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+
+    const query = { vendorId };
+    if (startDate || endDate) query.createdAt = dateFilter;
+
+    const purchases = await Purchase.find(query).lean();
+    if (!purchases.length) {
+      return res.status(404).json({
+        message: "No purchases found for this vendor in given range.",
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook({
+      useStyles: true,
+      useSharedStrings: true,
+    });
+
+    const sheet = workbook.addWorksheet("Purchase Report");
+
+    sheet.columns = [
+      { header: "SR No.", key: "srNo", width: 10 },
+      { header: "Invoice Number", key: "invoiceNumber", width: 20 },
+      { header: "Invoice Date", key: "createdAt", width: 20 },
+      { header: "Product Name", key: "name", width: 20 },
+      { header: "HSN Code", key: "hsnCode", width: 15 },
+      { header: "Bag Size", key: "bagsize", width: 15 },
+      { header: "Bag Count", key: "bag", width: 10 },
+      { header: "Weight", key: "weight", width: 10 },
+      { header: "Total Weight", key: "totalweight", width: 15 },
+      { header: "Unit", key: "unit", width: 10 },
+      { header: "Price", key: "price", width: 10 },
+      { header: "Quantity", key: "quantity", width: 10 },
+      { header: "Total", key: "total", width: 20 },
+    ];
+
+    let grandTotal = 0;
+    let grandSubtotal = 0;
+    let grandGST = 0;
+    let srNo = 1;
+
+    for (const invoice of purchases) {
+      sheet.addRow({
+        srNo: srNo++,
+        invoiceNumber: `🧾 Invoice: ${invoice.invoiceNumber}`,
+        createdAt: new Date(invoice.createdAt).toLocaleDateString(),
+      });
+
+      for (const item of invoice.items) {
+        sheet.addRow({
+          srNo: "",
+          invoiceNumber: "",
+          createdAt: "",
+          name: item.name,
+          hsnCode: item.hsnCode,
+          bagsize: item.bagsize,
+          bag: item.bag,
+          weight: item.weight,
+          totalweight: item.totalweight,
+          unit: item.unit,
+          price: item.price,
+          quantity: item.quantity,
+          total: item.total,
+        });
+      }
+
+      const subtotalRow = sheet.addRow({});
+      const subtotalCell = sheet.getCell(`M${subtotalRow.number}`);
+      subtotalCell.value = `Subtotal: ₹${invoice.subtotal.toFixed(
+        2
+      )} | GST: ₹${invoice.gstAmount.toFixed(
+        2
+      )} | Total: ₹${invoice.totalAmount.toFixed(2)}`;
+      subtotalCell.font = { bold: true, size: 12 };
+      subtotalCell.alignment = { horizontal: "center", vertical: "middle" };
+      sheet.mergeCells(`M${subtotalRow.number}:S${subtotalRow.number}`);
+
+      sheet.addRow({});
+
+      grandSubtotal += invoice.subtotal;
+      grandGST += invoice.gstAmount;
+      grandTotal += invoice.totalAmount;
+    }
+
+    sheet.addRow({});
+
+    const addGrandRow = (label, value, fontSize = 12) => {
+      const row = sheet.addRow({});
+      const cell = sheet.getCell(`M${row.number}`);
+      cell.value = `${label}: ₹${value.toFixed(2)}`;
+      cell.font = { bold: true, size: fontSize };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      sheet.mergeCells(`M${row.number}:S${row.number}`);
+    };
+
+    addGrandRow("Grand Subtotal", grandSubtotal);
+    addGrandRow("Grand GST", grandGST);
+    addGrandRow("Grand Total", grandTotal, 14);
+
+    sheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell, colNumber) => {
+        if (rowNumber === 1) {
+          cell.font = { bold: true };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        } else {
+          cell.alignment =
+            colNumber === 1
+              ? { horizontal: "center", vertical: "middle" }
+              : { horizontal: "left", vertical: "middle" };
+        }
+      });
+    });
+
+    const reportsDir = path.join("./reports");
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+
+    const fileName = `${vendor.businessInformation.businessName.replace(
+      /[^a-z0-9]/gi,
+      "_"
+    )}_Purchase_Report.xlsx`;
+    const filePath = path.join(reportsDir, fileName);
+
+    await workbook.xlsx.writeFile(filePath);
+
+    res.download(filePath, fileName, (err) => {
+      if (err) {
+        console.error("Download error:", err);
+        res.status(500).send("Could not download the file.");
+      } else {
+        fs.unlink(filePath, () => {});
+      }
+    });
+  } catch (err) {
+    console.error("Error generating vendor report:", err);
     res.status(500).json({ message: "Server Error", error: err.message });
   }
 };
@@ -1589,6 +1740,7 @@ export {
   generatePLReport,
   generatePurchaseReport,
   generateSalesReport,
+  generateVendorReport,
   getCustomerInvoiceReport,
   getOverallReport,
   getPartyWiseReport,

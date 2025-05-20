@@ -176,7 +176,7 @@ const generateLedgerPDF = async (req, res) => {
     const bankLedger = await BankLedger.findOne(query);
 
     if (!bankLedger) {
-      return res.status(404).json({ message: "Bank ledger not found" });
+      return res.status(204).json({ message: "Bank ledger not found" });
     }
 
     // Filter transactions based on date range or financial year
@@ -516,7 +516,7 @@ const generateConsolidatedLedgerPDF = async (req, res) => {
         .map((d) => new Date(d).getTime());
 
       if (allDates.length === 0) {
-        return res.status(404).json({
+        return res.status(204).json({
           message:
             "No transaction data found to generate a consolidated ledger.",
         });
@@ -547,16 +547,6 @@ const generateConsolidatedLedgerPDF = async (req, res) => {
       size: "A4",
       margin: 15,
     });
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=consolidated-date-based-${userType}-ledger-${
-        new Date().toISOString().split("T")[0]
-      }.pdf`
-    );
-
-    doc.pipe(res);
 
     // Add header information
     const companyName = "Ramdev Agro";
@@ -694,11 +684,21 @@ const generateConsolidatedLedgerPDF = async (req, res) => {
         (balance) => balance === 0
       )
     ) {
-      return res.status(404).json({
+      doc.end();
+      return res.status(204).json({
         message: "No relevant transactions found for the specified criteria.",
       });
     }
 
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=consolidated-date-based-${userType}-ledger-${
+        new Date().toISOString().split("T")[0]
+      }.pdf`
+    );
+
+    doc.pipe(res);
     // --- PDF Table Layout ---
     const startY = doc.y;
     const rowHeight = 20;
