@@ -9,6 +9,7 @@ import {
   getOverallReport,
   getProductReport,
   getStockSummaryReport,
+  getVendorInvoiceReport,
 } from "../controllers/reportController.js";
 
 const router = Router();
@@ -20,6 +21,7 @@ router.get("/purchase-summary", generatePurchaseReport);
 router.get("/sale/customer/:customerId", generateCustomerReport);
 router.get("/purchase/vendor/:vendorId", generateVendorReport);
 router.get("/customer-invoice/:customerId", getCustomerInvoiceReport);
+router.get("/vendor-invoice/:vendorId", getVendorInvoiceReport);
 router.get("/stock-summary", getStockSummaryReport);
 router.get("/product/:productId", getProductReport);
 router.get("/pnl", generatePLReport);

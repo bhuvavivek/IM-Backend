@@ -875,9 +875,51 @@ const getCustomerInvoiceReport = async (req, res) => {
       )
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ customerInvoice: sales });
+    return res.status(200).json({ invoices: sales });
   } catch (error) {
     console.error("Error fetching invoice report:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+const getVendorInvoiceReport = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+
+    const filter = {
+      vendorId,
+      ...(startDate || endDate ? { purchaseDate: dateFilter } : {}),
+    };
+
+    const purchases = await Purchase.find(filter)
+      .select(
+        " invoiceNumber subtotal gstAmount totalAmount amountPaid pendingAmount status purchaseDate paymentSendDate"
+      )
+      .sort({ purchaseDate: -1 })
+      .lean(); // so we can modify fields directly
+
+    // Rename keys to match `getCustomerInvoiceReport` response
+    const invoices = purchases.map((p) => ({
+      _id: p._id,
+      invoiceNumber: p.invoiceNumber,
+      subtotal: p.subtotal,
+      gstAmount: p.gstAmount,
+      totalAmount: p.totalAmount,
+      amountPaid: p.amountPaid,
+      pendingAmount: p.pendingAmount,
+      status: p.status,
+      createdAt: p.purchaseDate, // remap
+      dueDate: p.paymentSendDate, // remap
+    }));
+
+    return res.status(200).json({ invoices });
+  } catch (error) {
+    console.error("Error fetching vendor invoice report:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -1747,4 +1789,5 @@ export {
   getProductReport,
   getProductWiseReport,
   getStockSummaryReport,
+  getVendorInvoiceReport,
 };
