@@ -8,7 +8,7 @@ import Product from "../models/Product.js";
 import Purchase from "../models/Purchase.js";
 import Sales from "../models/Sales.js";
 import Stock from "../models/Stock.js";
-import mongoose from "mongoose";
+import PDFDocument from 'pdfkit'
 
 const getOverallReport = async (req, res) => {
   try {
@@ -1119,6 +1119,183 @@ const convertToKg = (weight, unit) => {
   }
 };
 
+const generatePLReport = async (req, res) => {
+  try {
+    const { startDate, endDate, format = 'json' } = req.query;
+
+    let start;
+    let end;
+
+    if (!startDate || !endDate) {
+      // Fetch the earliest and latest dates from your data
+      const firstSale = await Sales.findOne({}, { createdAt: 1 }, { sort: { createdAt: 1 } });
+      const lastSale = await Sales.findOne({}, { createdAt: 1 }, { sort: { createdAt: -1 } });
+
+      const firstPurchase = await Purchase.findOne({}, { purchaseDate: 1 }, { sort: { purchaseDate: 1 } });
+      const lastPurchase = await Purchase.findOne({}, { purchaseDate: 1 }, { sort: { purchaseDate: -1 } });
+
+      const firstExpense = await Expense.findOne({}, { date: 1 }, { sort: { date: 1 } });
+      const lastExpense = await Expense.findOne({}, { date: 1 }, { sort: { date: -1 } });
+
+      // Determine the overall start and end dates
+      start = new Date(Math.min(
+        firstSale?.createdAt?.getTime() || Date.now(),
+        firstPurchase?.purchaseDate?.getTime() || Date.now(),
+        firstExpense?.date?.getTime() || Date.now()
+      ));
+
+      end = new Date(Math.max(
+        lastSale?.createdAt?.getTime() || Date.now(),
+        lastPurchase?.purchaseDate?.getTime() || Date.now(),
+        lastExpense?.date?.getTime() || Date.now()
+      ));
+
+       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({
+          message: "Could not determine start and end dates from the data.",
+        });
+      }
+
+    } else {
+      start = new Date(startDate);
+      end = new Date(endDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({
+          message: "Invalid date format. Please use a valid date string (e.g., YYYY-MM-DD).",
+        });
+      }
+    }
+    // --- 1. Calculate Total Sales Revenue ---
+    const sales = await Sales.find({
+      createdAt: { $gte: start, $lte: end },
+    });
+
+    let totalSalesRevenue = 0;
+    sales.forEach((sale) => {
+      totalSalesRevenue += Number(sale.totalAmount || 0);
+    });
+
+    // --- 2. Calculate Cost of Goods Sold (using Purchases as proxy) ---
+    const purchases = await Purchase.find({
+      purchaseDate: { $gte: start, $lte: end },
+    });
+
+    let totalPurchases = 0;
+    purchases.forEach((purchase) => {
+      totalPurchases += Number(purchase.totalAmount || 0);
+    });
+
+    // --- 3. Calculate Gross Profit ---
+    const grossProfit = totalSalesRevenue - totalPurchases;
+
+    // --- 4. Calculate Total Operating Expenses ---
+    const expenses = await Expense.find({
+      date: { $gte: start, $lte: end },
+      isDeleted: false,
+    });
+
+    let totalOperatingExpenses = 0;
+    expenses.forEach((expense) => {
+      totalOperatingExpenses += Number(expense.total || 0);
+    });
+
+    // --- 5. Calculate Net Profit/Loss ---
+    const netProfitLoss = grossProfit - totalOperatingExpenses;
+
+    // Prepare the report data
+    const reportData = {
+      period: `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+      salesRevenue: totalSalesRevenue.toFixed(2),
+      costOfGoodsSold: totalPurchases.toFixed(2),
+      grossProfit: grossProfit.toFixed(2),
+      operatingExpenses: totalOperatingExpenses.toFixed(2),
+      netProfitLoss: netProfitLoss.toFixed(2),
+      status: netProfitLoss >= 0 ? "Net Profit" : "Net Loss",
+    };
+
+    // --- Handle PDF Generation if format is 'pdf' ---
+    if (format === 'pdf') {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 30,
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=pnl-report-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      doc.pipe(res);
+
+      const companyName = "Ramdev Agro";
+      const companyAddress = "SURVEY NO 20, PAIKI PLOT NO 1, KHATA NO 736, AT- GALA,TA- DHRANGANDHRA, DIST- SURENDRANAGAR ,363310";
+      const companyContact = "Phone: +91 94289 51404 | Email: Revabesanind@gmail.com";
+      const companyGst = "GST Number: 24ABBFR5130N1Z6x";
+
+      doc.fontSize(15).font('Helvetica-Bold').text(companyName, { align: 'center' });
+      doc.moveDown(0.2);
+      doc.fontSize(10).font('Helvetica').text(companyAddress, { align: 'center' });
+      doc.moveDown(0.2);
+      doc.text(companyContact, { align: 'center' });
+      doc.moveDown(0.2);
+      doc.text(companyGst, { align: 'center' });
+      doc.moveTo(30, doc.y + 10).lineTo(doc.page.width - 30, doc.y + 10).stroke();
+      doc.moveDown(1.5);
+
+      doc.fontSize(18).font('Helvetica-Bold').text('PROFIT & LOSS STATEMENT', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(12).font('Helvetica').text(`Period: ${reportData.period}`, { align: 'center' });
+      doc.moveDown(1);
+
+      const textIndent = 50;
+      const valueIndent = 450;
+
+      doc.fontSize(12).font('Helvetica-Bold').text('Revenue from Operations:', textIndent);
+      doc.fontSize(12).font('Helvetica').text(`₹ ${String(reportData.salesRevenue)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.moveDown(0.5);
+
+      doc.fontSize(12).font('Helvetica-Bold').text('Less: Cost of Goods Sold:', textIndent);
+      doc.fontSize(12).font('Helvetica').text(`₹ ${reportData.costOfGoodsSold}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.moveDown(0.5);
+      doc.moveTo(textIndent, doc.y).lineTo(doc.page.width - textIndent, doc.y).stroke();
+      doc.moveDown(0.2);
+
+      doc.fontSize(12).font('Helvetica-Bold').text('Gross Profit:', textIndent);
+      doc.fontSize(12).font('Helvetica-Bold').text(`₹ ${reportData.grossProfit}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.moveDown(1);
+
+      doc.fontSize(12).font('Helvetica-Bold').text('Less: Operating Expenses:', textIndent);
+      expenses.forEach(exp => {
+        doc.fontSize(10).font('Helvetica').text(`${exp.name}:`, textIndent + 20);
+        doc.text(`₹ ${exp.total.toFixed(2)}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+        doc.moveDown(0.2);
+      });
+      doc.moveTo(textIndent, doc.y).lineTo(doc.page.width - textIndent, doc.y).stroke();
+      doc.moveDown(0.2);
+      doc.fontSize(12).font('Helvetica-Bold').text('Total Operating Expenses:', textIndent);
+      doc.fontSize(12).font('Helvetica-Bold').text(`₹ ${reportData.operatingExpenses}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.moveDown(1);
+
+      doc.fontSize(14).font('Helvetica-Bold').text('Net Profit / (Loss):', textIndent);
+      doc.fontSize(14).font('Helvetica-Bold').text(`₹ ${reportData.netProfitLoss}`, valueIndent, doc.y - doc.currentLineHeight(), { align: 'right' });
+      doc.moveDown(0.5);
+      doc.fontSize(10).font('Helvetica').text(`Status: ${reportData.status}`, textIndent);
+
+      doc.end();
+    } else {
+      res.status(200).json({
+        message: "P&L Report generated successfully.",
+        data: reportData,
+      });
+    }
+  } catch (error) {
+    console.error("Error generating P&L report:", error);
+    res.status(500).json({
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
 
 export {
   generateCustomerReport,
@@ -1129,4 +1306,5 @@ export {
   getProductReport,
   getProductWiseReport,
   getStockSummaryReport,
+  generatePLReport
 };

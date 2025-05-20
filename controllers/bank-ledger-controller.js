@@ -176,7 +176,7 @@ const generateLedgerPDF = async (req, res) => {
     }
 
     if (financialYear) {
-      transactions = transactions.filter(t => t.finanacialYear === financialYear);
+      transactions = transactions.filter(t => t.financialYear === financialYear);
     }
 
     // Sort transactions by date
@@ -190,6 +190,8 @@ const generateLedgerPDF = async (req, res) => {
         openingBalance = firstTransaction.amount;
       } else {
         // Calculate opening balance from previous transactions
+        // This is a simplified calculation and might need to be more robust
+        // depending on how 'balanceAfter' is calculated in your transactions.
         openingBalance = firstTransaction.balanceAfter -
           (firstTransaction.type === 'credit' ? firstTransaction.amount : -firstTransaction.amount);
       }
@@ -279,8 +281,9 @@ const generateLedgerPDF = async (req, res) => {
     // Table Headers
     const startY = doc.y;
     const rowHeight = 25; // Increased row height for spacing
-    const colWidths = [100, 100, 100, 130, 100]; // Adjusted column widths for A4 and removed Particulars
-    const cols = ['Date', 'Debit', 'Credit', 'Balance', 'Kasar']; // Removed Particulars
+    // Adjusted column widths for A4 to accommodate the new column
+    const colWidths = [80, 80, 80, 80, 100, 100]; 
+    const cols = ['Date', 'Debit', 'Credit', 'Balance', 'Kasar', 'Remarks']; // Changed 'Type' to 'Remarks'
 
     // Draw table header
     doc.fontSize(8).font('Helvetica-Bold');
@@ -301,7 +304,8 @@ const generateLedgerPDF = async (req, res) => {
       openingBalance < 0 ? Math.abs(openingBalance).toFixed(2) : '',
       openingBalance > 0 ? openingBalance.toFixed(2) : '',
       openingBalance.toFixed(2),
-      ''
+      '',
+      'Opening Balance' // Show 'Opening Balance' here
     ];
 
     openingRowData.forEach((data, i) => {
@@ -340,7 +344,8 @@ const generateLedgerPDF = async (req, res) => {
         debit,
         credit,
         runningBalance.toFixed(2),
-        transaction.kasar ? transaction.kasar.toFixed(2) : ''
+        transaction.kasar ? transaction.kasar.toFixed(2) : '',
+        '' // No need to display type for regular transactions here
       ];
 
       doc.fontSize(8).font('Helvetica');
@@ -365,7 +370,8 @@ const generateLedgerPDF = async (req, res) => {
       closingBalance < 0 ? Math.abs(closingBalance).toFixed(2) : '',
       closingBalance > 0 ? closingBalance.toFixed(2) : '',
       closingBalance.toFixed(2),
-      ''
+      '',
+      'Closing Balance' // Show 'Closing Balance' here
     ];
 
     doc.fontSize(8).font('Helvetica-Bold');
@@ -374,19 +380,6 @@ const generateLedgerPDF = async (req, res) => {
       doc.text(data, currentX + 3, currentY + 8, { width: colWidths[i] - 6, align: 'center' }); // Increased vertical padding
       currentX += colWidths[i];
     });
-
-    // Summary
-    doc.moveDown(3); // Increased space before summary
-    doc.fontSize(10).font('Helvetica-Bold').text('Summary:', 20);
-    // reset
-    detailY = doc.y 
-    doc.fontSize(9).font('Helvetica');
-    detailY += 12;
-    doc.text(`Opening Balance: ₹${openingBalance}`, 20,detailY);
-    detailY += 12;
-    doc.text(`Closing Balance: ₹${closingBalance}`, 20,detailY);
-    detailY += 12
-    doc.text(`Total Transactions: ${transactions.length}`, 20,detailY);
 
     // Finalize the PDF
     doc.end();

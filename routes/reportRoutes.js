@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   generateCustomerReport,
+  generatePLReport,
   generateSalesReport,
   getCustomerInvoiceReport,
   getOverallReport,
@@ -17,4 +18,5 @@ router.get("/sale/customer/:customerId", generateCustomerReport);
 router.get("/customer-invoice/:customerId", getCustomerInvoiceReport);
 router.get("/stock-summary", getStockSummaryReport);
 router.get("/product/:productId", getProductReport);
+router.get("/pnl",generatePLReport)
 export default router;
